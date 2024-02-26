@@ -1,3 +1,0 @@
-[submodule "object_detector"]
-	path = object_detector
-	url = https://github.com/dongle94/Object-Detector.git
