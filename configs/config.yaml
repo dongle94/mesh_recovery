@@ -1,0 +1,46 @@
+# Environments
+ENV:
+  DEVICE: cuda     # cuda, cpu
+  GPU_NUM: 0
+
+# Media
+MEDIA:
+  SOURCE: "0"
+  OPT_AUTO: False
+  FOURCC: "MJPG"
+  WIDTH: 1280
+  HEIGHT: 720
+  FPS: 30
+
+# Object Detector
+DET:
+  MODEL_TYPE: yolov5
+  DET_MODEL_PATH: './weights/yolov5x6.pt'
+  HALF: True
+  CONF_THRES: 0.5
+  OBJ_CLASSES: [0]
+
+YOLOV5:
+  IMG_SIZE: 1280
+  NMS_IOU: 0.45
+  AGNOSTIC_NMS: True
+  MAX_DET: 100
+
+# Object Tracker
+TRACK:
+  TRACK_USE_ENCODER: false
+  TRACK_MODEL_TYPE: "deepocsort"
+  TRACK_MODEL_PATH: "./weights/osnet_x0_25_market1501.pt"
+  TRACK_HALF: false
+
+# Logger
+LOG:
+  LOG_LEVEL: 'info'
+  LOGGER_NAME: "OBJ"
+  CONSOLE_LOG: True
+  CONSOLE_LOG_INTERVAL: 30
+  FILE_LOG: False
+  FILE_LOG_DIR: './log/'
+  FILE_LOG_COUNTER: 10
+  FILE_LOG_ROTATE_TIME: "D"
+  FILE_LOG_ROTATE_INTERVAL: 1
