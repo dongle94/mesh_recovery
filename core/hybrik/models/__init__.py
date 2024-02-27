@@ -1,0 +1,1 @@
+from .HRNetSMPLXCamKidReg import HRNetSMPLXCamKidReg
