@@ -5,10 +5,12 @@ import time
 import multiprocessing as mp
 
 from core.mp.mp_queue import MessageQueue
+from utils.logger import get_logger
 
 
 class Job(object):
-    def __init__(self, i=0):
+    def __init__(self, cfg=None, i=0):
+        self.cfg = cfg
         self.name = self.__class__.__name__ + f'-{i}'
 
     def init(self):
@@ -41,6 +43,8 @@ class Task(object):
         self.lock = mp.Lock()
         self.empty_input_task = empty_input_task
 
+        self.logger = get_logger()
+
     def set_queues(self, input_queues=None, output_queues=None):
         if input_queues is not None:
             self.input_queues = input_queues if isinstance(input_queues, (list, tuple)) else [input_queues]
@@ -66,7 +70,7 @@ class Task(object):
                 self.job.init()
             except Exception as e:
                 msg = e.message if hasattr(e, 'message') else e
-                print(f"Failed initializing job {self}, {msg}")
+                self.logger.exception(f"Failed initializing job {self}, {msg}")
                 raise e
 
         signal.signal(signal.SIGTERM, self._stop_signal)
@@ -92,7 +96,7 @@ class Task(object):
         self._need_finish = True
 
     def work_loop(self):
-        print(f"Started {self.__str__()}")
+        self.logger.info(f"Started {self.__str__()}")
         self._is_started = True
         self.initialize()
 
@@ -103,35 +107,42 @@ class Task(object):
                     time.sleep(0.001)
                 else:
                     try:
-                        with self.lock:
-                            item = self.input_queues[0].get(block=True, timeout=0.01)
+                        # with self.lock:
+                        item = self.input_queues[0].get(block=True, timeout=0.01)
                     except queue.Empty:
                         time.sleep(0.001)
                         continue
 
-                self._process(item)
+                while self._need_finish is False:
+                    try:
+                        self._process(item)
+                        break
+                    except Exception as e:
+                        import traceback
+                        get_logger().error(f"Exception processing {self.job}: {e}")
+                        self._need_finish = True
         except KeyboardInterrupt:
-            print("KeyboardInterrupt")
+            self.logger.warning("KeyboardInterrupt")
         except Exception as e:
-            print(f"Exception in _work_loop: {e}")
+            import traceback
+            self.logger.exception(f"Exception in _work_loop: {e}, {traceback.format_exc()}")
 
         self.stop()
-        print(f"Finished {self}")
+        self.logger.info(f"Finished {self}")
 
     def _process(self, item):
         result = self.job.process(item)
-        if result is None or self.output_queues is None:
-            return
-        new_input = result
-        self._process_result(new_input, self.output_queues[0])
+        if self.output_queues is not None:
+            for next_output_queue in self.output_queues:
+                self._process_result(result, next_output_queue)
 
     def _process_result(self, res, output_queue):
         if output_queue is None or res is None:
             return
         while output_queue and self._need_finish is False:
             try:
-                with self.lock:
-                    output_queue.put(res, block=True, timeout=self.output_timeout)
+                # with self.lock:
+                output_queue.put(res, block=True, timeout=self.output_timeout)
                 break
             except queue.Full:
                 time.sleep(0.001)
@@ -181,6 +192,11 @@ class MPTaskLauncher(TaskLauncher):
                 self.bg_process.join(1.0)
                 self.bg_process.terminate()
 
+    def join(self, timeout):
+        if self.bg_process:
+            if self.bg_process.is_alive():
+                self.bg_process.join(timeout)
+
 
 class TaskManager(object):
     def __init__(self):
@@ -192,6 +208,7 @@ class TaskManager(object):
     def remove_task(self, task):
         if task in self.task_list:
             task.stop()
+            task.join(1.0)
 
             self.task_list.remove(task)
 
@@ -202,6 +219,9 @@ class TaskManager(object):
     def stop(self):
         for t in self.task_list:
             t.stop()
+
+        for w in self.task_list:
+            w.join(1.0)
 
         self.task_list = []
 
