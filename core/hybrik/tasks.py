@@ -14,33 +14,51 @@ from utils.logger import get_logger, init_logger
 
 
 class VideoInputTask(task.Job):
-    def __init__(self, source, realtime=False, bgr=True):
-        super().__init__()
+    def __init__(self, cfg):
+        super().__init__(cfg=cfg, i=0)
 
         self.media_loader = None
-        self.f_count = 0
 
-        self.source = source
-        self.realtime = realtime
-        self.bgr = bgr
+        self.source = cfg.media_source
+        self.realtime = cfg.media_realtime
+        self.bgr = cfg.media_bgr
+
+        self.logger = None
+        self.total_time = 0.
+        self.f_cnt = 0
 
     def init(self):
         from core.media_loader import MediaLoader
         self.media_loader = MediaLoader(self.source)
-        self.f_count = 0
+
+        init_logger(self.cfg)
+
+        self.logger = get_logger()
+        self.total_time = 0.
+        self.f_cnt = 0
 
     def process(self, item=None):
+        self.f_cnt += 1
+        st = time.time()
+
         frame = self.media_loader.get_frame()
 
         stop = True if frame is None else False
 
         item = {
-            'idx': self.f_count,
+            'idx': self.f_cnt,
             'video_meta': [self.media_loader.dataset.fps, (self.media_loader.dataset.w, self.media_loader.dataset.h)],
             'image': frame,
             'end': stop
         }
-        self.f_count += 1
+
+        et = time.time()
+        self.total_time += (et - st)
+        if self.f_cnt % self.cfg.console_log_interval == 0:
+            self.logger.info(
+                f"VideoInputTask {self.f_cnt} frames average time: {self.total_time / self.f_cnt:.6f} sec."
+            )
+
         return item
 
 
