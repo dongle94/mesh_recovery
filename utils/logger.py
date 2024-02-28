@@ -4,13 +4,14 @@ from logging.handlers import TimedRotatingFileHandler
 import os
 
 
-logger = None
+logger_name = ''
 log_initialize = False
 
 
 def init_logger(cfg=None, name="default", filename="", loglevel="debug"):
     # LOG FORMATTING
     # https://docs.python.org/ko/3.8/library/logging.html#logrecord-attributes
+    global logger_name
     global log_initialize
     if log_initialize is True:
         return
@@ -20,8 +21,8 @@ def init_logger(cfg=None, name="default", filename="", loglevel="debug"):
 
     if cfg is not None:
         # LOGGER NAME
-        name = cfg.logger_name if cfg.logger_name else name
-        _logger = logging.getLogger(name)
+        logger_name = cfg.logger_name if cfg.logger_name else logger_name
+        _logger = logging.getLogger(logger_name)
 
         # LOG LEVEL
         log_level = cfg.log_level.upper() if cfg.log_level else loglevel.upper()
@@ -61,19 +62,20 @@ def init_logger(cfg=None, name="default", filename="", loglevel="debug"):
             _logger.addHandler(_handler)
 
     else:       # cfg is None
-        loglevel = loglevel.upper()
-        _logger = logging.getLogger(name)
-        _logger.setLevel(loglevel)
+        logger_name = __name__
+        log_level = loglevel.upper()
+        _logger = logging.getLogger(logger_name)
+        _logger.setLevel(log_level)
 
         # CONSOLE LOGGER
         _handler = StreamHandler()
-        _handler.setLevel(loglevel)
+        _handler.setLevel(log_level)
         formatter = logging.Formatter(log_format)
         _handler.setFormatter(formatter)
         _logger.addHandler(_handler)
 
         # FILE LOGGER
-        filename = os.path.join('./log', name + '.log')
+        filename = os.path.join('./log', logger_name + '.log')
         logdir = os.path.dirname(filename)
         if not os.path.exists(logdir):
             os.makedirs(logdir)
@@ -85,20 +87,14 @@ def init_logger(cfg=None, name="default", filename="", loglevel="debug"):
             backupCount=10,
             encoding='utf8'
         )
-        _handler.setLevel(loglevel)
+        _handler.setLevel(log_level)
         formatter = logging.Formatter(log_format)
         _handler.setFormatter(formatter)
         _logger.addHandler(_handler)
 
     _logger.info("Start Main logger")
-    global logger
-    logger = _logger
     log_initialize = True
 
 
-def get_logger(name=None):
-    if name is None:
-        global logger
-        return logger
-    else:
-        return logging.getLogger(name)
+def get_logger():
+    return logging.getLogger(logger_name)
