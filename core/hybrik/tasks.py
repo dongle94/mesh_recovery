@@ -69,7 +69,7 @@ class ObjectDetectionTask(task.Job):
 
     def process(self, item=None):
         if item is None or item['end'] is True:
-            return None
+            return item
         self.f_cnt += 1
         st = time.time()
 
@@ -119,7 +119,10 @@ class HybrIKTask(task.Job):
         from core.hybrik.utils.config import update_config
         from core.hybrik.models import builder
         from easydict import EasyDict
+
         cfg_file = './configs/256x192_hrnet_rle_smplx_kid.yaml'
+        hybrik_ckpt = './weights/hybrikx_rle_hrnet.pth'
+
         self.hybrik_cfg = update_config(cfg_file)
         self.hybrik_cfg['MODEL']['EXTRA']['USE_KID'] = self.hybrik_cfg['DATASET'].get('USE_KID', False)
 
@@ -147,6 +150,12 @@ class HybrIKTask(task.Job):
             loss_type=self.hybrik_cfg.LOSS['TYPE']
         )
         self.hybrik_model = builder.build_sppe(self.hybrik_cfg.MODEL)
+        save_dict = torch.load(hybrik_ckpt, map_location='cpu')
+        if type(save_dict) == dict:
+            model_dict = save_dict['model']
+            self.hybrik_model.load_state_dict(model_dict)
+        else:
+            self.hybrik_model.load_state_dict(save_dict)
         self.hybrik_model.cuda(self.gpu_num)
         self.hybrik_model.eval()
         self._is_face_sent = False
@@ -158,7 +167,7 @@ class HybrIKTask(task.Job):
 
     def process(self, item=None):
         if item is None or item['end'] is True:
-            return None
+            return item
         self.f_cnt += 1
         st = time.time()
 
@@ -238,17 +247,17 @@ class PostHybrIKTask(task.Job):
         self.write_mesh_stream = None
 
         now = datetime.datetime.now()
-        dirname = os.path.join('./out', now.strftime("%Y-%m-%d_%H-%M-%S"))
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-        if not os.path.exists(os.path.join(dirname, 'raw_images')):
-            os.makedirs(os.path.join(dirname, 'raw_images'))
-        if not os.path.exists(os.path.join(dirname, 'res_images')):
-            os.makedirs(os.path.join(dirname, 'res_images'))
-        if not os.path.exists(os.path.join(dirname, 'res_mesh')):
-            os.makedirs(os.path.join(dirname, 'res_mesh'))
-        self.savepath = f'./out/{dirname}/res.mp4'
-        self.savepath_mesh = f'./out/{dirname}/res_mesh.mp4'
+        self.dirname = os.path.join('./out', now.strftime("%Y-%m-%d_%H-%M-%S"))
+        if not os.path.exists(self.dirname):
+            os.makedirs(self.dirname)
+        if not os.path.exists(os.path.join(self.dirname, 'raw_images')):
+            os.makedirs(os.path.join(self.dirname, 'raw_images'))
+        if not os.path.exists(os.path.join(self.dirname, 'res_images')):
+            os.makedirs(os.path.join(self.dirname, 'res_images'))
+        if not os.path.exists(os.path.join(self.dirname, 'res_mesh')):
+            os.makedirs(os.path.join(self.dirname, 'res_mesh'))
+        self.savepath = f'{self.dirname}/res.mp4'
+        self.savepath_mesh = f'{self.dirname}/res_mesh.mp4'
         self.fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 
         init_logger(self.cfg)
@@ -258,69 +267,81 @@ class PostHybrIKTask(task.Job):
 
     def process(self, item=None):
         if item is None or item['end'] is True:
-            return None
+            return item
         self.f_cnt += 1
         st = time.time()
 
-        # if self.smplx_faces is None:
-        #     self.smplx_faces = item['smplx_faces']
-        # if self.write_stream is None:
-        #     fps, frame_size = item['video_meta'][0], item['video_meta'][1]
-        #     self.write_stream = cv2.VideoWriter(
-        #         self.savepath, self.fourcc, fps, frame_size)
-        #     self.write_mesh_stream = cv2.VideoWriter(
-        #         self.savepath_mesh, self.fourcc, fps, frame_size)
+        if self.smplx_faces is None:
+            self.smplx_faces = item['smplx_faces']
+        if self.write_stream is None:
+            fps, frame_size = item['video_meta'][0], item['video_meta'][1]
+            self.write_stream = cv2.VideoWriter(
+                self.savepath, self.fourcc, fps, frame_size)
+            self.write_mesh_stream = cv2.VideoWriter(
+                self.savepath_mesh, self.fourcc, fps, frame_size)
 
         frame = item['image']
         b_frame = None
         rets = item['hybrik_ret']
-        # for ret in rets:
-        #     pose_output, focal = ret['pose_output'], ret['focal']
-        #     uv_jts = pose_output.pred_uvd_jts.reshape(-1, 3)[:, :2]
-        #     transl = pose_output.transl.detach()
-        #     vertices = pose_output.pred_vertices.detach()
-        #     verts_batch = vertices
-        #     transl_batch = transl
-        #
-        #     color_batch = self.render_mesh(
-        #         vertices=verts_batch,  # (10475,3)
-        #         faces=self.smplx_faces,  # (20908,3)
-        #         translation=transl_batch,  # (1, 3)
-        #         focal_length=focal,  # scalar: 3709
-        #         height=frame.shape[0],  # 1024
-        #         width=frame.shape[1],  # 576
-        #         device=torch.device(f'cuda:{self.gpu_num}')
-        #     )
-        #
-        #     valid_mask_batch = (color_batch[:, :, :, [-1]] > 0)
-        #     valid_mask = valid_mask_batch[0].cpu().numpy()
-        #
-        #     image_vis_batch = color_batch[:, :, :, :3] * valid_mask_batch
-        #     image_vis_batch = (image_vis_batch * 255).cpu().numpy()
-        #     color = image_vis_batch[0]
-        #
-        #     input_img = frame
-        #     alpha = 0.9
-        #     image_vis = alpha * color[:, :, :3] * valid_mask + \
-        #         (1 - alpha) * input_img * valid_mask + \
-        #         (1 - valid_mask) * input_img
-        #     if b_frame is None:
-        #         b_frame = color[:, :, :3] * valid_mask
-        #     else:
-        #         b_frame = cv2.add(b_frame, color[:, :, :3] * valid_mask)
-        #
-        # b_frame = b_frame.astype(np.uint8)
-        # b_frame = cv2.cvtColor(b_frame, cv2.COLOR_RGB2BGR)
-        #
-        # item['b_frame'] = b_frame
-        #
-        # if torch.cuda.is_available():
-        #     torch.cuda.synchronize()
-        # et = time.time()
-        # self.total_time += (et-st)
-        # if self.f_cnt % self.cfg.console_log_interval == 0:
-        #     self.logger.info(
-        #         f"PostHybrIKTask {self.f_cnt} frames average time: {self.total_time/self.f_cnt:.6f} sec."
-        #     )
+        for ret in rets:
+            pose_output, focal = ret['pose_output'], ret['focal']
+            # uv_jts = pose_output.pred_uvd_jts.reshape(-1, 3)[:, :2]
+            transl = pose_output.transl.detach()
+            vertices = pose_output.pred_vertices.detach()
+            verts_batch = vertices.cuda()
+            transl_batch = transl.cuda()
+
+            # print(verts_batch.size(), self.smplx_faces.size(), transl_batch.size(), focal)
+            color_batch = self.render_mesh(
+                vertices=verts_batch,  # (1, 10475,3)
+                faces=self.smplx_faces.cuda(),  # (20908,3)
+                translation=transl_batch,  # (1, 3)
+                focal_length=focal,  # scalar: 3709
+                height=frame.shape[0],  # 1280
+                width=frame.shape[1],  # 720
+                device=torch.device(f'cuda:{self.gpu_num}')
+            )
+
+            valid_mask_batch = (color_batch[:, :, :, [-1]] > 0)
+            valid_mask = valid_mask_batch[0].cpu().numpy()
+
+            image_vis_batch = color_batch[:, :, :, :3] * valid_mask_batch
+            image_vis_batch = (image_vis_batch * 255).cpu().numpy()
+            color = image_vis_batch[0]
+
+            alpha = 0.9
+            frame = alpha * color[:, :, :3] * valid_mask + \
+                (1 - alpha) * frame * valid_mask + \
+                (1 - valid_mask) * frame
+            if b_frame is None:
+                b_frame = color
+            else:
+                b_frame = cv2.add(b_frame, color)
+
+        image_vis = frame.astype(np.uint8)
+        image_vis = cv2.cvtColor(image_vis, cv2.COLOR_RGB2BGR)
+
+        item['frame'] = image_vis
+        item['b_frame'] = b_frame
+
+        self.write_stream.write(image_vis)
+        cv2.imwrite(os.path.join(self.dirname, 'res_images', f'image{self.f_cnt:06d}.jpg'), image_vis)
+        if b_frame is not None:
+            b_frame = b_frame.astype(np.uint8)
+            self.write_mesh_stream.write(b_frame)
+            cv2.imwrite(os.path.join(self.dirname, 'res_mesh', f'image{self.f_cnt:06d}.jpg'), b_frame)
+
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        et = time.time()
+        self.total_time += (et-st)
+        if self.f_cnt % self.cfg.console_log_interval == 0:
+            self.logger.info(
+                f"PostHybrIKTask {self.f_cnt} frames average time: {self.total_time/self.f_cnt:.6f} sec."
+            )
 
         return item
+
+    def __del__(self):
+        self.write_stream.release()
+        self.write_mesh_stream.release()
