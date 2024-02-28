@@ -5,11 +5,16 @@ import os
 
 
 logger = None
+log_initialize = False
 
 
 def init_logger(cfg=None, name="default", filename="", loglevel="debug"):
     # LOG FORMATTING
     # https://docs.python.org/ko/3.8/library/logging.html#logrecord-attributes
+    global log_initialize
+    if log_initialize is True:
+        return
+
     log_format = "[%(asctime)s]-[%(levelname)s]-[%(name)s]-[%(module)s](%(process)d): %(message)s"
     date_format = '%Y-%m-%d %H:%M:%S'
 
@@ -88,6 +93,7 @@ def init_logger(cfg=None, name="default", filename="", loglevel="debug"):
     _logger.info("Start Main logger")
     global logger
     logger = _logger
+    log_initialize = True
 
 
 def get_logger(name=None):
