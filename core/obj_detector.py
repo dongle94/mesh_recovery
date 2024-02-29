@@ -12,7 +12,7 @@ from utils.logger import get_logger
 
 class ObjectDetector(object):
     def __init__(self, cfg=None):
-        self.logger = get_logger(cfg.logger_name)
+        self.logger = get_logger()
         self.cfg = cfg
 
         weight = os.path.abspath(cfg.det_model_path)
