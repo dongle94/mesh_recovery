@@ -1,10 +1,11 @@
 import queue
 from multiprocessing import Queue, Lock
+from torch.multiprocessing import Queue as torch_Queue
 
 
 class MessageQueue(object):
-    def __init__(self, q_size=0):
-        self.queue = Queue(maxsize=q_size)
+    def __init__(self, q_size=0, torch=False):
+        self.queue = torch_Queue(maxsize=q_size) if torch is True else Queue(maxsize=q_size)
         self.max_size = q_size
         self.lock = Lock()
         self.is_closed = False

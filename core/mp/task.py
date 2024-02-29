@@ -25,10 +25,10 @@ class Job(object):
 
 
 class Task(object):
-    def __init__(self, job=None, use_default_queues=True, empty_input_task=False):
+    def __init__(self, job=None, use_default_queues=True, empty_input_task=False, is_torch=False):
         if use_default_queues:
-            self.input_queues = [MessageQueue(q_size=1)]
-            self.output_queues = [MessageQueue(q_size=1)]
+            self.input_queues = [MessageQueue(q_size=1, torch=is_torch)]
+            self.output_queues = [MessageQueue(q_size=1, torch=is_torch)]
         else:
             self.input_queues = None
             self.output_queues = None
