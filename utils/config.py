@@ -46,7 +46,13 @@ def set_config(file):
     config.track_half = _config['TRACK']['TRACK_HALF']
 
     # HYBRIK
-    # config.
+    config.hybrik_ckpt = _config['HYBRIK']['CKPT']
+    config.hybrik_cfg = _config['HYBRIK']['CFG']
+    config.hybrik_save_img = _config['HYBRIK']['SAVE_IMG']
+    config.hybrik_save_orig_img = _config['HYBRIK']['SAVE_ORIG_IMG']
+    config.hybrik_save_mesh_img = _config['HYBRIK']['SAVE_MESH_IMG']
+    config.hybrik_save_vid = _config['HYBRIK']['SAVE_VID']
+    config.hybrik_save_mesh_vid = _config['HYBRIK']['SAVE_MESH_VID']
 
     # Logger
     config.log_level = _config['LOG']['LOG_LEVEL']

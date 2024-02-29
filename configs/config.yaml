@@ -23,10 +23,20 @@ DET:
   OBJ_CLASSES: [0]
 
 YOLOV5:
-  IMG_SIZE: 1280
+  IMG_SIZE: 640
   NMS_IOU: 0.45
   AGNOSTIC_NMS: True
   MAX_DET: 100
+
+# HYBRIK
+HYBRIK:
+  CKPT: './weights/hybrikx_rle_hrnet.pth'
+  CFG: './configs/256x192_hrnet_rle_smplx_kid.yaml'
+  SAVE_IMG: False
+  SAVE_ORIG_IMG: False
+  SAVE_MESH_IMG: False
+  SAVE_VID: False
+  SAVE_MESH_VID: False
 
 # Object Tracker
 TRACK:
