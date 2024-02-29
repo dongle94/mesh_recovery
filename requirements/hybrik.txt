@@ -1,3 +1,6 @@
 easydict
 git+https://github.com/facebookresearch/pytorch3d.git@stable
 scipy
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch==2.0.1
+torchvision==0.15.2
