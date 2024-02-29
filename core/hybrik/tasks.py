@@ -348,7 +348,6 @@ class PostHybrIKTask(task.Job):
                 b_frame = cv2.add(b_frame, color)
 
         image_vis = frame.astype(np.uint8)
-        image_vis = cv2.cvtColor(image_vis, cv2.COLOR_RGB2BGR)
 
         item['frame'] = image_vis
         item['b_frame'] = b_frame
@@ -380,6 +379,8 @@ class PostHybrIKTask(task.Job):
 
         return item
 
-    def __del__(self):
-        self.write_stream.release()
-        self.write_mesh_stream.release()
+    def close(self):
+        if self.write_stream is not None:
+            self.write_stream.release()
+        if self.write_mesh_stream is not None:
+            self.write_mesh_stream.release()
