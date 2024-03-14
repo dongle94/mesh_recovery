@@ -2,6 +2,7 @@ import os
 import sys
 import cv2
 import time
+import math
 import torch
 import numpy as np
 import datetime
@@ -29,7 +30,7 @@ class VideoInputTask(task.Job):
 
     def init(self):
         from core.media_loader import MediaLoader
-        self.media_loader = MediaLoader(self.source)
+        self.media_loader = MediaLoader(self.source, logger=self.logger, realtime=self.realtime, bgr=self.bgr)
 
         init_logger(self.cfg)
 
@@ -100,6 +101,7 @@ class ObjectDetectionTask(task.Job):
             # cv2.rectangle(frame, (x1, y1), (x2, y2), (96, 96, 216), thickness=2, lineType=cv2.LINE_AA)
             det_ret.append([x1, y1, x2, y2])
 
+        # det_ret = self.get_center_closed_box(det_ret, frame)
         item['det_ret'] = det_ret
 
         if torch.cuda.is_available():
@@ -113,8 +115,28 @@ class ObjectDetectionTask(task.Job):
 
         return item
 
+    @staticmethod
+    def get_center_closed_box(boxes, img):
+        h, w = img.shape[:2]
+        ch, cw = h // 2, w // 2
+        box = None
+        dist_to_center = 0
+        for b in boxes:
+            x1, y1, x2, y2 = b
+            cx, cy = int(x1 + x2) // 2, int(y1 + y2) // 2
+            if box is None:
+                box = b
+                dist_to_center = math.dist((cy, cx), (ch, cw))
+                continue
 
-class HybrIKTask(task.Job):
+            _dist_to_center = math.dist((cy, cx), (ch, cw))
+            if _dist_to_center < dist_to_center:
+                dist_to_center = _dist_to_center
+                box = b
+        return [box]
+
+
+class HybrIKXTask(task.Job):
     def __init__(self, cfg, i=0):
         super().__init__(cfg=cfg, i=i)
 
@@ -223,7 +245,7 @@ class HybrIKTask(task.Job):
         if torch.cuda.is_available():
             torch.cuda.synchronize()
         et = time.time()
-        self.total_time += (et-st)
+        self.total_time += (et - st)
         if self.f_cnt % self.cfg.console_log_interval == 0:
             self.logger.info(
                 f"HybrIKTask {self.f_cnt} frames average time: {self.total_time/self.f_cnt:.6f} sec."
@@ -242,7 +264,7 @@ class HybrIKTask(task.Job):
         return [cx, cy, w, h]
 
 
-class PostHybrIKTask(task.Job):
+class PostHybrIKXTask(task.Job):
     def __init__(self, cfg, i=0):
         super().__init__(cfg=cfg, i=i)
         self.device = cfg.device
