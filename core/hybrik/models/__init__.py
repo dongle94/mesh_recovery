@@ -1,1 +1,2 @@
 from .HRNetSMPLXCamKidReg import HRNetSMPLXCamKidReg
+from .HRNetWithCam import HRNetSMPLCam
