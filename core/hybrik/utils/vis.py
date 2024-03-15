@@ -11,10 +11,11 @@ def draw_heatmap(image, joints, indices, colors, mask=None, height=None):
     for idx, pt in enumerate(joints):
         if idx in indices:
             x, y = pt
-            base = cv2.circle(base, (int(x), int(y)), int(height / 35), colors[idx][0], -1)
-            base = cv2.circle(base, (int(x), int(y)), int(height / 50), colors[idx][1], -1)
+            print(int(height / 30), int(height / 45), int(height / 65), int(height / 100))
+            base = cv2.circle(base, (int(x), int(y)), int(height / 30), colors[idx][0], -1)
+            base = cv2.circle(base, (int(x), int(y)), int(height / 45), colors[idx][1], -1)
             base = cv2.circle(base, (int(x), int(y)), int(height / 65), colors[idx][2], -1)
-            base = cv2.circle(base, (int(x), int(y)), int(height / 80), colors[idx][3], -1)
+            base = cv2.circle(base, (int(x), int(y)), int(height / 100), colors[idx][3], -1)
     if mask is not None:
         frame = cv2.add((0.3 * base * mask).astype(np.uint8), image.astype(np.uint8))
     else:
