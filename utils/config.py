@@ -53,6 +53,7 @@ def set_config(file):
     config.hybrik_save_mesh_img = _config['HYBRIK']['SAVE_MESH_IMG']
     config.hybrik_save_vid = _config['HYBRIK']['SAVE_VID']
     config.hybrik_save_mesh_vid = _config['HYBRIK']['SAVE_MESH_VID']
+    config.hybrik_draw_heatmap = _config['HYBRIK']['DRAW_HEATMAP']
 
     # Logger
     config.log_level = _config['LOG']['LOG_LEVEL']

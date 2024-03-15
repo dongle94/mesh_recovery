@@ -17,9 +17,9 @@ MEDIA:
 # Object Detector
 DET:
   MODEL_TYPE: yolov5
-  DET_MODEL_PATH: './weights/yolov5n.pt'
+  DET_MODEL_PATH: './weights/yolov5x.pt'
   HALF: True
-  CONF_THRES: 0.5
+  CONF_THRES: 0.75
   OBJ_CLASSES: [0]
 
 YOLOV5:
@@ -37,6 +37,7 @@ HYBRIK:
   SAVE_MESH_IMG: False
   SAVE_VID: False
   SAVE_MESH_VID: False
+  DRAW_HEATMAP: True
 
 # Object Tracker
 TRACK:

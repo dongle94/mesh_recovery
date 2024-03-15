@@ -12,6 +12,7 @@ sys.path.append(ROOT_PATH)
 
 from core.mp import task
 from utils.logger import get_logger, init_logger
+from core.hybrik.utils import vis
 
 
 class VideoInputTask(task.Job):
@@ -234,7 +235,13 @@ class HybrIKXTask(task.Job):
                     pose_output[k] = pose_output[k].detach().clone()
             bbox_xywh = self.xyxy2xywh(bbox)
             focal = 1000.0 / 256 * bbox_xywh[2]
-            data = [pose_output, focal]
+
+            uv_71 = pose_output.pred_uvd_jts.reshape(-1, 3)[:, :2]
+            pts = uv_71 * bbox_xywh[2]
+            pts[:, 0] = pts[:, 0] + bbox_xywh[0]
+            pts[:, 1] = pts[:, 1] + bbox_xywh[1]
+
+            data = [pose_output, focal, pts]
             res.append(data)
         item['hybrikx_ret'] = res
 
@@ -335,8 +342,9 @@ class PostHybrIKXTask(task.Job):
         frame = item['image'].copy()
         b_frame = None
         rets = item['hybrikx_ret']
-        for ret in rets:
-            pose_output, focal = ret[0], ret[1]
+        bboxes = item['det_ret']
+        for idx, ret in enumerate(rets):
+            pose_output, focal, pts = ret[0], ret[1], ret[2]
 
             transl = pose_output.transl
             vertices = pose_output.pred_vertices
@@ -364,6 +372,13 @@ class PostHybrIKXTask(task.Job):
             frame = alpha * color[:, :, :3] * valid_mask + \
                 (1 - alpha) * frame * valid_mask + \
                 (1 - valid_mask) * frame
+
+            if self.cfg.hybrik_draw_heatmap is True:
+                bh = bboxes[idx][3] - bboxes[idx][1]
+                valid_idx = [3, 11, 16, 18, 21]
+                color_dict = {3: 'red', 11: 'blue', 16: 'green', 18: 'red', 21: 'blue'}
+                frame = vis.draw_heatmap(frame, pts, valid_idx, colors=color_dict, mask=valid_mask, height=bh)
+
             if b_frame is None:
                 b_frame = color
             else:
@@ -397,7 +412,7 @@ class PostHybrIKXTask(task.Job):
                 f"PostHybrIKXTask {self.f_cnt} frames average time: {self.total_time/self.f_cnt:.6f} sec."
             )
 
-        del item['hybrik_ret']
+        del item['hybrikx_ret']
 
         return item
 
@@ -505,7 +520,13 @@ class HybrIKTask(task.Job):
                     pose_output[k] = pose_output[k].detach().clone()
             bbox_xywh = self.xyxy2xywh(bbox)
             focal = 1000.0 / 256 * bbox_xywh[2]
-            data = [pose_output, focal]
+
+            uv_29 = pose_output.pred_uvd_jts.reshape(29, 3)[:, :2]
+            pts = uv_29 * bbox_xywh[2]
+            pts[:, 0] = pts[:, 0] + bbox_xywh[0]
+            pts[:, 1] = pts[:, 1] + bbox_xywh[1]
+
+            data = [pose_output, focal, pts]
             res.append(data)
         item['hybrik_ret'] = res
 
@@ -606,8 +627,9 @@ class PostHybrIKTask(task.Job):
         frame = item['image'].copy()
         b_frame = None
         rets = item['hybrik_ret']
-        for ret in rets:
-            pose_output, focal = ret[0], ret[1]
+        bboxes = item['det_ret']
+        for idx, ret in enumerate(rets):
+            pose_output, focal, pts = ret[0], ret[1], ret[2]
 
             transl = pose_output.transl
             vertices = pose_output.pred_vertices
@@ -635,6 +657,13 @@ class PostHybrIKTask(task.Job):
             frame = alpha * color[:, :, :3] * valid_mask + \
                 (1 - alpha) * frame * valid_mask + \
                     (1 - valid_mask) * frame
+
+            if self.cfg.hybrik_draw_heatmap is True:
+                bh = bboxes[idx][3] - bboxes[idx][1]
+                valid_idx = [3, 11, 16, 18, 21]
+                color_dict = {3: 'red', 11: 'blue', 16: 'green', 18: 'red', 21: 'blue'}
+                frame = vis.draw_heatmap(frame, pts, valid_idx, colors=color_dict, mask=valid_mask, height=bh)
+
             if b_frame is None:
                 b_frame = color
             else:
