@@ -19,7 +19,7 @@ smplx_layer_neutral = SMPLXLayer(
     num_betas=10,
     use_pca=False,
     age='kid',
-    kid_template_path='weights/smplx_kid_template.npy',
+    kid_template_path='weights/smplx/smplx_kid_template.npy',
 )
 
 smplx_layer_female = SMPLXLayer(
@@ -27,7 +27,7 @@ smplx_layer_female = SMPLXLayer(
     num_betas=10,
     use_pca=False,
     age='kid',
-    kid_template_path='weights/smplx_kid_template.npy',
+    kid_template_path='weights/smplx/smplx_kid_template.npy',
 )
 
 smplx_layer_male = SMPLXLayer(
@@ -35,7 +35,7 @@ smplx_layer_male = SMPLXLayer(
     num_betas=10,
     use_pca=False,
     age='kid',
-    kid_template_path='weights/smplx_kid_template.npy',
+    kid_template_path='weights/smplx/smplx_kid_template.npy',
 )
 
 

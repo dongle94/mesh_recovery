@@ -76,7 +76,7 @@ class HRNetSMPLXCamKidReg(nn.Module):
             num_betas=10,
             use_pca=False,
             age='kid',
-            kid_template_path='weights/smplx_kid_template.npy',
+            kid_template_path='weights/smplx/smplx_kid_template.npy',
         )
 
         self.root_idx_smpl = 0
