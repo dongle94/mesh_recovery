@@ -48,6 +48,7 @@ def set_config(file):
     # HYBRIK
     config.hybrik_ckpt = _config['HYBRIK']['CKPT']
     config.hybrik_cfg = _config['HYBRIK']['CFG']
+    config.hybrikx = _config['HYBRIK']['X']
     config.hybrik_save_img = _config['HYBRIK']['SAVE_IMG']
     config.hybrik_save_orig_img = _config['HYBRIK']['SAVE_ORIG_IMG']
     config.hybrik_save_mesh_img = _config['HYBRIK']['SAVE_MESH_IMG']

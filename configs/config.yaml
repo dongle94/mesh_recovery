@@ -5,8 +5,8 @@ ENV:
 
 # Media
 MEDIA:
-  SOURCE: "~/Videos/dance/dance1.mp4"
-  OPT_AUTO: False
+  SOURCE: "/home/dongle94/Videos/edu/sample.mp4"
+  OPT_AUTO: True
   FOURCC: "MJPG"
   WIDTH: 1280
   HEIGHT: 720
@@ -32,12 +32,13 @@ YOLOV5:
 HYBRIK:
   CKPT: './weights/hybrikx_rle_hrnet.pth'
   CFG: './configs/256x192_hrnet_rle_smplx_kid.yaml'
+  X: True
   SAVE_IMG: False
   SAVE_ORIG_IMG: False
   SAVE_MESH_IMG: False
   SAVE_VID: False
   SAVE_MESH_VID: False
-  DRAW_HEATMAP: True
+  DRAW_HEATMAP: False
 
 # Object Tracker
 TRACK:
