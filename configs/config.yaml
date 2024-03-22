@@ -30,8 +30,7 @@ YOLOV5:
 
 # HYBRIK
 HYBRIK:
-  CKPT: './weights/hybrikx_rle_hrnet.pth'
-  CFG: './configs/256x192_hrnet_rle_smplx_kid.yaml'
+  CKPT: './weights/hybrik/hybrikx_rle_hrnet.pth'
   X: True
   SAVE_IMG: False
   SAVE_ORIG_IMG: False
