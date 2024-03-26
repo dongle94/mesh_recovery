@@ -85,7 +85,6 @@ class LoadVideo(LoadSample):
             #     self.cap.release()
             #     raise StopIteration("Video End")
 
-
         if self.bgr is False:
             im = im[..., ::-1]
 

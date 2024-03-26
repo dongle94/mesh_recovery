@@ -71,11 +71,17 @@ class MediaLoader(object):
 
 
 if __name__ == "__main__":
-    import sys
+    # import sys
+    from utils.config import set_config, get_config
 
-    s = sys.argv[1]      # video file, webcam, rtsp stream... 0etc
+    # s = sys.argv[1]      # video file, webcam, rtsp stream... 0etc
+    set_config('./configs/config.yaml')
+    _cfg = get_config()
+    _bgr = getattr(_cfg, 'media_bgr', True)
+    _realtime = getattr(_cfg, 'media_realtime', False)
 
-    _media_loader = MediaLoader(s, bgr=True)
+    # _media_loader = MediaLoader(s, bgr=True)
+    _media_loader = MediaLoader(_cfg.media_source, bgr=_bgr, realtime=_realtime, opt=_cfg)
     print("-- MediaLoader is ready")
 
     _title = 'frame'
