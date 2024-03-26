@@ -85,7 +85,7 @@ if __name__ == "__main__":
     print("-- MediaLoader is ready")
 
     _title = 'frame'
-    wt = 1
+    wt = 30
 
     _frame = _media_loader.get_frame()
     print("-- Frame Metadata:", _frame.shape, _frame.dtype)
