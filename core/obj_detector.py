@@ -109,6 +109,7 @@ class ObjectDetector(object):
 
 if __name__ == "__main__":
     import cv2
+    import time
     from core.media_loader import MediaLoader
     from utils.logger import init_logger
     from utils.config import set_config, get_config
@@ -121,10 +122,17 @@ if __name__ == "__main__":
 
     _detector = ObjectDetector(cfg=_cfg)
 
-    s = sys.argv[1]
-    media_loader = MediaLoader(s, realtime=False, opt=_cfg)
+    _bgr = getattr(_cfg, 'media_bgr', True)
+    _realtime = getattr(_cfg, 'media_realtime', False)
+    media_loader = MediaLoader(_cfg.media_source,
+                               logger=_logger,
+                               realtime=_realtime,
+                               bgr=_bgr,
+                               opt=_cfg)
+    wt = 1 / media_loader.dataset.fps
 
     while True:
+        st = time.time()
         frame = media_loader.get_frame()
 
         _det = _detector.run(frame)
@@ -137,5 +145,9 @@ if __name__ == "__main__":
         if cv2.waitKey(1) == ord('q'):
             print("-- CV2 Stop --")
             break
+
+        et = time.time()
+        if et - st < wt:
+            time.sleep(wt - (et - st))
 
     print("-- Stop program --")
