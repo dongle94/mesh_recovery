@@ -17,7 +17,7 @@ def set_config(file):
     config.gpu_num = _config['ENV']['GPU_NUM']
 
     # Media
-    config.media_source = _config['MEDIA']['SOURCE']
+    config.media_source = str(_config['MEDIA']['SOURCE'])
     config.media_opt_auto = _config['MEDIA']['OPT_AUTO']
     config.media_fourcc = _config['MEDIA']['FOURCC']
     config.media_width = _config['MEDIA']['WIDTH']
