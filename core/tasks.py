@@ -400,9 +400,9 @@ class PostHybrIKTask(task.Job):
 
         image_vis = frame.astype(np.uint8)
         item['frame'] = image_vis
-        item['b_frame'] = b_frame
         if b_frame is not None:
             b_frame = b_frame.astype(np.uint8)
+        item['b_frame'] = b_frame
 
         if self.cfg.hybrik_save_img is True:
             cv2.imwrite(os.path.join(self.dirname, 'res_images', f'image{self.f_cnt:06d}.jpg'), image_vis)
