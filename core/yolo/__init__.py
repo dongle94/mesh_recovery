@@ -1,7 +1,13 @@
+# Ultralytics YOLO 🚀, AGPL-3.0 license
 import time
 
 
-class YOLOV5(object):
+__version__ = "8.3.24"
+
+__all__ = "__version__"
+
+
+class YOLO(object):
     def __init__(self):
         pass
 

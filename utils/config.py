@@ -24,7 +24,9 @@ def set_config(file):
     config.media_height = _config['MEDIA']['HEIGHT']
     config.media_fps = _config['MEDIA']['FPS']
     config.media_realtime = _config['MEDIA']['REALTIME']
-    config.media_bgr = eval(str(_config['MEDIA']['BGR']))
+    config.media_bgr = _config['MEDIA']['BGR']
+    config.media_enable_param = _config['MEDIA']['ENABLE_PARAM']
+    config.media_cv2_params = _config['MEDIA']['CV_PARAM']
 
     # Det
     config.det_model_type = _config['DET']['MODEL_TYPE']
@@ -32,12 +34,11 @@ def set_config(file):
     config.det_half = _config['DET']['HALF']
     config.det_conf_thres = _config['DET']['CONF_THRES']
     config.det_obj_classes = _config['DET']['OBJ_CLASSES']
-
-    # YOLOV5
-    config.yolov5_img_size = _config['YOLOV5']['IMG_SIZE']
-    config.yolov5_nms_iou = _config['YOLOV5']['NMS_IOU']
-    config.yolov5_agnostic_nms = _config['YOLOV5']['AGNOSTIC_NMS']
-    config.yolov5_max_det = _config['YOLOV5']['MAX_DET']
+    # YOLO
+    config.yolo_img_size = _config['DET']['YOLO']['IMG_SIZE']
+    config.yolo_nms_iou = _config['DET']['YOLO']['NMS_IOU']
+    config.yolo_agnostic_nms = _config['DET']['YOLO']['AGNOSTIC_NMS']
+    config.yolo_max_det = _config['DET']['YOLO']['MAX_DET']
 
     # TRACKER
     config.track_use_encoder = _config['TRACK']['TRACK_USE_ENCODER']
@@ -56,6 +57,8 @@ def set_config(file):
     config.hybrik_draw_heatmap = _config['HYBRIK']['DRAW_HEATMAP']
 
     # Logger
+    if 'LOG' not in _config:
+        raise ValueError("LOG_LEVEL is missing in config file")
     config.log_level = _config['LOG']['LOG_LEVEL']
     config.logger_name = _config['LOG']['LOGGER_NAME']
     config.console_log = _config['LOG']['CONSOLE_LOG']

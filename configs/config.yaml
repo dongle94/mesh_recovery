@@ -13,20 +13,24 @@ MEDIA:
   FPS: 30
   REALTIME: False
   BGR: True
+  ENABLE_PARAM: False
+  CV_PARAM:
+    - cv2.CAP_PROP_AUTO_EXPOSURE: 1
+    - cv2.CAP_PROP_BRIGHTNESS: 128
+    - cv2.CAP_PROP_EXPOSURE: 50
 
 # Object Detector
 DET:
   MODEL_TYPE: yolov5
-  DET_MODEL_PATH: './weights/yolov5x.pt'
-  HALF: True
-  CONF_THRES: 0.75
+  DET_MODEL_PATH: './weights/yolov11/yolo11m.pt'
+  HALF: False
+  CONF_THRES: 0.5
   OBJ_CLASSES: [0]
-
-YOLOV5:
-  IMG_SIZE: 640
-  NMS_IOU: 0.45
-  AGNOSTIC_NMS: True
-  MAX_DET: 100
+  YOLO:
+    IMG_SIZE: 640
+    NMS_IOU: 0.45
+    AGNOSTIC_NMS: True
+    MAX_DET: 20
 
 # HYBRIK
 HYBRIK:
@@ -48,7 +52,7 @@ TRACK:
 
 # Logger
 LOG:
-  LOG_LEVEL: 'info'
+  LOG_LEVEL: 'debug'
   LOGGER_NAME: "MESH"
   CONSOLE_LOG: True
   CONSOLE_LOG_INTERVAL: 30
