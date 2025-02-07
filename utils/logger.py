@@ -2,30 +2,35 @@ import logging
 from logging import StreamHandler
 from logging.handlers import TimedRotatingFileHandler
 import os
+import sys
+from datetime import datetime
 
 
-logger_name = ''
+logger = None
 log_initialize = False
 
 
 def init_logger(cfg=None, name="default", filename="", loglevel="debug"):
     # LOG FORMATTING
     # https://docs.python.org/ko/3.8/library/logging.html#logrecord-attributes
-    global logger_name
+    global logger
     global log_initialize
     if log_initialize is True:
         return
 
     log_format = "[%(asctime)s]-[%(levelname)s]-[%(name)s]-[%(module)s](%(process)d): %(message)s"
-    date_format = '%Y-%m-%d %H:%M:%S'
+    timestamp = datetime.now().strftime("%Y%m%d")
 
     if cfg is not None:
         # LOGGER NAME
-        logger_name = cfg.logger_name if cfg.logger_name else logger_name
-        _logger = logging.getLogger(logger_name)
+        name = cfg.logger_name if cfg.logger_name else name
+        _logger = logging.getLogger(name)
 
         # LOG LEVEL
+        valid_log_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
         log_level = cfg.log_level.upper() if cfg.log_level else loglevel.upper()
+        if log_level not in valid_log_levels:
+            raise ValueError(f"Invalid log level: {log_level}")
         _logger.setLevel(log_level)
 
         # LOG CONSOLE
@@ -40,7 +45,7 @@ def init_logger(cfg=None, name="default", filename="", loglevel="debug"):
 
         # LOG FILE
         if cfg.file_log is True:
-            filename = os.path.join(cfg.file_log_dir, cfg.logger_name + '.log')
+            filename = os.path.join(cfg.file_log_dir, f"{name}_{timestamp}" + '.log')
             logdir = os.path.dirname(filename)
             if not os.path.exists(logdir):
                 os.makedirs(logdir)
@@ -62,9 +67,10 @@ def init_logger(cfg=None, name="default", filename="", loglevel="debug"):
             _logger.addHandler(_handler)
 
     else:       # cfg is None
-        logger_name = __name__
         log_level = loglevel.upper()
-        _logger = logging.getLogger(logger_name)
+        _logger = logging.getLogger(name)
+        if _logger.hasHandlers():
+            _logger.handlers.clear()
         _logger.setLevel(log_level)
 
         # CONSOLE LOGGER
@@ -75,7 +81,7 @@ def init_logger(cfg=None, name="default", filename="", loglevel="debug"):
         _logger.addHandler(_handler)
 
         # FILE LOGGER
-        filename = os.path.join('./log', logger_name + '.log')
+        filename = os.path.join('./log', f"{name}_{timestamp}" + '.log')
         logdir = os.path.dirname(filename)
         if not os.path.exists(logdir):
             os.makedirs(logdir)
@@ -94,7 +100,25 @@ def init_logger(cfg=None, name="default", filename="", loglevel="debug"):
 
     _logger.info("Start Main logger")
     log_initialize = True
+    logger = _logger
 
 
-def get_logger():
-    return logging.getLogger(logger_name)
+def get_logger(name=None):
+    if name is None:
+        global logger
+        return logger
+    else:
+        return logging.getLogger(name)
+
+
+if __name__ == '__main__':
+    from pathlib import Path
+
+    FILE = Path(__file__).resolve()
+    ROOT = FILE.parents[1]
+    if str(ROOT) not in sys.path:
+        sys.path.append(str(ROOT))
+    os.chdir(ROOT)  # set the current path is ROOT
+
+    init_logger()
+    get_logger().info("hello world")
