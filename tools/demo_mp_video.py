@@ -9,7 +9,7 @@ ROOT_PATH = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(ROOT_PATH)
 sys.path.append(os.path.join(ROOT_PATH, 'object_detector'))
 
-from core.hybrik.tasks import VideoInputTask, ObjectDetectionTask, HybrIKTask, PostHybrIKTask
+from core.tasks import VideoInputTask, ObjectDetectionTask, HybrIKTask, PostHybrIKTask
 from core.mp.task import Task, MPTaskLauncher, TaskManager
 from utils.config import set_config, get_config
 from utils.logger import init_logger
@@ -77,11 +77,11 @@ def run(source=None):
             # cv2.imshow('video', img)
 
             frame = item['frame']
-            # bframe = item['b_frame']
+            bframe = item['b_frame']
             cv2.imshow('frame', frame)
-            # cv2.imshow('bframe', bframe)
+            cv2.imshow('bframe', bframe)
 
-            if cv2.waitKey(10) == ord('q'):
+            if cv2.waitKey(1) == ord('q'):
                 break
         except KeyboardInterrupt:
             print("KeyboardInterrupt. Exit loop.")
