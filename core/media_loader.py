@@ -1,11 +1,16 @@
 import os
+import sys
 import cv2
-import math
-import numpy as np
 from pathlib import Path
-import time
+
+FILE = Path(__file__).resolve()
+ROOT = FILE.parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))  # add ROOT to PATH
+os.chdir(ROOT)
 
 from core.medialoader import load_images, load_video, load_stream
+from utils.logger import get_logger
 
 
 def check_sources(source):
@@ -27,10 +32,29 @@ def check_sources(source):
 
 
 class MediaLoader(object):
+    """
+    A utility class to load and handle various media types including images, videos, and streams.
+
+    Args:
+        source (str): The media source path (file, directory, or stream URL).
+        stride (int, optional): Frame sampling stride. Defaults to 1.
+        logger (Logger, optional): Logger instance for logging. Defaults to None.
+        realtime (bool, optional): Enable real-time streaming. Defaults to False.
+        opt (Namespace, optional): Configuration options. Defaults to None.
+        bgr (bool, optional): Load frames in BGR format if True. Defaults to True.
+
+    Attributes:
+        is_imgs (bool): Whether the source is a collection of images.
+        is_vid (bool): Whether the source is a video file.
+        is_stream (bool): Whether the source is a video stream.
+        dataset (object): The dataset loader instance for the selected source.
+        width (int): Width of the frames.
+        height (int): Height of the frames.
+    """
     def __init__(self, source, stride=1, logger=None, realtime=False, opt=None, bgr=True):
 
         self.stride = stride
-        self.logger = logger
+        self.logger = logger if logger is not None else get_logger()
         self.realtime = realtime
         self.opt = opt
         self.bgr = bgr
@@ -40,22 +64,52 @@ class MediaLoader(object):
         if self.is_imgs:
             dataset = load_images.LoadImages(source, bgr=self.bgr)
         elif self.is_vid:
-            dataset = load_video.LoadVideo(source, stride=self.stride, realtime=self.realtime, bgr=self.bgr)
+            dataset = load_video.LoadVideo(source, stride=self.stride, realtime=self.realtime, bgr=self.bgr,
+                                           logger=logger)
         elif self.is_stream:
-            dataset = load_stream.LoadStream(source, stride=self.stride, opt=self.opt, bgr=self.bgr)
+            dataset = load_stream.LoadStream(source, opt=self.opt, bgr=self.bgr, logger=logger)
         else:
             raise NotImplementedError(f'Invalid input: {source}')
 
+        if self.is_vid or self.is_stream:
+            self.width, self.height = dataset.w, dataset.h
+        else:       # self.is_imgs:
+            self.width, self.height = opt.media_width, opt.media_height
+
         self.dataset = dataset
 
-        # self.alive = True
-        # self.bpause = False
+        self.logger.info(f"-- Frame Metadata: {self.width}x{self.height}, FPS: {self.dataset.fps}")
+        self.logger.info("-- MediaLoader is ready")
 
     def get_frame(self):
-        im = self.dataset.__next__()
-        return im
+        """
+        Fetch the next frame from the loaded media source.
+
+        Returns:
+            numpy.ndarray or None: The next frame as an image array if available, else None.
+
+        Raises:
+            StopIteration: If the dataset has no more frames to provide.
+        """
+        try:
+            frame = next(self.dataset)  # Attempt to fetch the next frame
+        except StopIteration:
+            self.logger.info("Media source has been fully consumed.")
+            raise StopIteration
+        except Exception as e:
+            # Handle other potential errors
+            self.logger.error(f"Unexpected error while fetching frame: {e}")
+            raise e
+        return frame
 
     def show_frame(self, title: str = 'frame', wait_sec: int = 0):
+        """
+        Display the current frame in a window.
+
+        Args:
+            title (str, optional): Title of the display window. Defaults to 'frame'.
+            wait_sec (int, optional): Delay in milliseconds for window display. Defaults to 0.
+        """
         frame = self.get_frame()
         if self.bgr is False:
             frame = frame[..., ::-1]
@@ -66,33 +120,38 @@ class MediaLoader(object):
             raise StopIteration
 
     def __del__(self):
+        """
+        Destructor to release resources.
+        """
         if hasattr(self, 'dataset'):
             del self.dataset
+        cv2.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    # import sys
+    from utils.logger import init_logger
     from utils.config import set_config, get_config
 
-    # s = sys.argv[1]      # video file, webcam, rtsp stream... 0etc
     set_config('./configs/config.yaml')
     _cfg = get_config()
-    _bgr = getattr(_cfg, 'media_bgr', True)
-    _realtime = getattr(_cfg, 'media_realtime', False)
 
-    # _media_loader = MediaLoader(s, bgr=True)
-    _media_loader = MediaLoader(_cfg.media_source, bgr=_bgr, realtime=_realtime, opt=_cfg)
-    print("-- MediaLoader is ready")
+    init_logger(_cfg)
+    _logger = get_logger()
+
+    _media_loader = MediaLoader(_cfg.media_source,
+                                logger=_logger,
+                                realtime=_cfg.media_realtime,
+                                bgr=_cfg.media_bgr,
+                                opt=_cfg)
 
     _title = 'frame'
-    wt = 30
-
-    _frame = _media_loader.get_frame()
-    print("-- Frame Metadata:", _frame.shape, _frame.dtype)
-
-    cv2.imshow(_title, _frame[..., ::-1])
-    cv2.waitKey(wt)
-
+    wt = int((0 if _media_loader.is_imgs else 1 / _media_loader.dataset.fps) * 1000)
     while True:
-        _frame = _media_loader.show_frame(title=_title, wait_sec=wt)
-
+        try:
+            _frame = _media_loader.show_frame(title=_title, wait_sec=wt)
+        except StopIteration:
+            print("All frames have been processed.")
+            break
+        except Exception as e:
+            print(f"An unexpected error occurred: {e}")
+            break
