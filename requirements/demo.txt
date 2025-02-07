@@ -1,0 +1,3 @@
+# Gradio demo (SMPL Visualization)
+gradio
+chumpy
