@@ -11,37 +11,28 @@ SMPL_MODEL.pose[0] = np.pi
 
 
 def draw_smpl_verices(range_min, range_max):
-    fig = plt.figure(figsize=(10, 10))
-    ax = fig.add_subplot(1, 2, 1, projection='3d')
-    ax.view_init(elev=0, azim=0, roll=0, vertical_axis='y')
-
-    axis_limit = 1.6
-    x_c = SMPL_MODEL[:, 0].mean()
-    y_c = SMPL_MODEL[:, 1].mean()
-    z_c = SMPL_MODEL[:, 2].mean()
-    ax.set_xlim3d([x_c - axis_limit / 2, x_c + axis_limit / 2])
-    ax.set_ylim3d([y_c - axis_limit / 2, y_c + axis_limit / 2])
-    ax.set_zlim3d([min(0, z_c - axis_limit / 2), z_c + axis_limit / 2])
-    ax.set_xlabel('x')
-    ax.set_ylabel('y')
-    ax.set_zlabel('z')
-    x_3d, y_3d, z_3d = SMPL_MODEL[:, 0], SMPL_MODEL[:, 1], SMPL_MODEL[:, 2]
+    fig = plt.figure(figsize=(70, 70))
     kpt_color = ['grey'] * 6890
-    kpt_color[range_min:range_max] = ['red'] * (range_max - range_min)
-    ax.scatter(x_3d, y_3d, z_3d, marker='o', c=kpt_color)
-
-    ax = fig.add_subplot(1, 2, 2, projection='3d')
-    ax.view_init(elev=1, azim=30, roll=0, vertical_axis='y')
-
+    if range_min != -1 or range_max != -1:
+        kpt_color[range_min:range_max] = ['red'] * (range_max - range_min)
     axis_limit = 2
     x_c = SMPL_MODEL[:, 0].mean()
     y_c = SMPL_MODEL[:, 1].mean()
     z_c = SMPL_MODEL[:, 2].mean()
-    ax.set_xlim3d([x_c - axis_limit / 2, x_c + axis_limit / 2])
-    ax.set_ylim3d([y_c - axis_limit / 2, y_c + axis_limit / 2])
-    ax.set_zlim3d([min(0, z_c - axis_limit / 2), z_c + axis_limit / 2])
-    x_3d, y_3d, z_3d = SMPL_MODEL[:, 0], SMPL_MODEL[:, 1], SMPL_MODEL[:, 2]
-    ax.scatter(x_3d, y_3d, z_3d, marker='o', c='grey')
+
+    def draw_subplot(loc, elev, azim, roll):
+        ax = fig.add_subplot(*loc, projection='3d')
+        ax.view_init(elev=elev, azim=azim, roll=roll, vertical_axis='y')
+        ax.set_xlim3d([x_c - axis_limit / 2, x_c + axis_limit / 2])
+        ax.set_ylim3d([y_c - axis_limit / 2, y_c + axis_limit / 2])
+        ax.set_zlim3d([min(0, z_c - axis_limit / 2), z_c + axis_limit / 2])
+        x_3d, y_3d, z_3d = SMPL_MODEL[:, 0], SMPL_MODEL[:, 1], SMPL_MODEL[:, 2]
+        ax.scatter(x_3d, y_3d, z_3d, marker='o', c=kpt_color)
+
+    draw_subplot((2, 2, 1), 1, 0, 0)
+    draw_subplot((2, 2, 2), 1, 60, 0)
+    draw_subplot((2, 2, 3), 1, -60, 0)
+    draw_subplot((2, 2, 4), 1, 120, 0)
 
     return fig
 
@@ -187,7 +178,8 @@ with gr.Blocks(title="3D Mesh Vertices visualization") as demo:
         outputs=bi
     )
 
-    plot_output = gr.Plot(label="Range Plot")
+    fig = draw_smpl_verices(range_min.value, range_max.value)
+    plot_output = gr.Plot(fig, label="Range Plot")
 
     # 드롭다운이 변경될 때마다 현재 선택 범위를 업데이트하여 최소, 최대 값을 표시
     for comp in [milli, centi, deci, bi]:
