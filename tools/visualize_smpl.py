@@ -1,3 +1,5 @@
+import io
+from PIL import Image
 import numpy as np
 import gradio as gr
 import matplotlib.pyplot as plt
@@ -11,11 +13,11 @@ SMPL_MODEL.pose[0] = np.pi
 
 
 def draw_smpl_verices(range_min, range_max, angles):
-    fig = plt.figure(figsize=(40, 16))
+    fig = plt.figure(figsize=(70, 35))
     kpt_color = ['grey'] * 6890
     if range_min != -1 or range_max != -1:
         kpt_color[range_min:range_max+1] = ['red'] * (range_max - range_min + 1)
-    axis_limit = 1.2
+    axis_limit = 1.25
     x_c = SMPL_MODEL[:, 0].mean()
     y_c = SMPL_MODEL[:, 1].mean()
     z_c = SMPL_MODEL[:, 2].mean()
@@ -32,7 +34,12 @@ def draw_smpl_verices(range_min, range_max, angles):
     draw_subplot(121, *angles[0])
     draw_subplot(122, *angles[1])
 
-    return fig
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png')
+    buf.seek(0)
+    img = Image.open(buf)
+
+    return img
 
 
 def update_plot(thousand, hundred, tens, ones, angles):
@@ -41,8 +48,8 @@ def update_plot(thousand, hundred, tens, ones, angles):
     그 결과를 plot_range_func의 입력으로 전달하여 Figure를 반환합니다.
     """
     rmin, rmax = get_range(thousand, hundred, tens, ones)
-    fig = draw_smpl_verices(rmin, rmax, angles)
-    return fig
+    img = draw_smpl_verices(rmin, rmax, angles)
+    return img
 
 
 def create_update_func(unit_flag):
@@ -157,21 +164,22 @@ with gr.Blocks(title="3D Mesh Vertices visualization") as demo:
         )
 
     # 현재 선택 범위(최소, 최대)를 표시할 컴포넌트
-    range_min = gr.Number(label="시작 인덱스", value=-1)
-    range_max = gr.Number(label="마지막 인덱스", value=-1)
+    with gr.Row():
+        range_min = gr.Number(label="시작 인덱스", value=-1)
+        range_max = gr.Number(label="마지막 인덱스", value=-1)
 
     _angles1 = gr.State([[1, 0, 0], [1, 180, 0]])
     _fig = draw_smpl_verices(range_min.value, range_max.value, _angles1.value)
-    plot_output_1 = gr.Plot(_fig, label="Front / Back")
+    plot_output_1 = gr.Image(_fig, label="Front / Back")
     _angles2 = gr.State([[45, 0, 0], [45, 180, 0]])
     _fig = draw_smpl_verices(range_min.value, range_max.value, _angles2.value)
-    plot_output_2 = gr.Plot(_fig, label="Overview Front / Back")
+    plot_output_2 = gr.Image(_fig, label="Overview Front / Back")
     _angles3 = gr.State([[1, 45, 0], [1, -45, 0]])
     _fig = draw_smpl_verices(range_min.value, range_max.value, _angles3.value)
-    plot_output_3 = gr.Plot(_fig, label="Front Side 45'/-45'")
-    _angles4 = gr.State([[1, 135, 0], [1, -135, 0]])
+    plot_output_3 = gr.Image(_fig, label="Front Side 45'/-45'")
+    _angles4 = gr.State([[1, 90, 0], [1, -90, 0]])
     _fig = draw_smpl_verices(range_min.value, range_max.value, _angles4.value)
-    plot_output_4 = gr.Plot(_fig, label="Back Side 135'/-135'")
+    plot_output_4 = gr.Image(_fig, label="Side 90'/-90'")
 
     milli.change(
         fn=create_update_func("thousand"),
