@@ -10,18 +10,18 @@ SMPL_MODEL = load_model('./models/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl')
 SMPL_MODEL.pose[0] = np.pi
 
 
-def draw_smpl_verices(range_min, range_max):
-    fig = plt.figure(figsize=(70, 70))
+def draw_smpl_verices(range_min, range_max, angles):
+    fig = plt.figure(figsize=(40, 16))
     kpt_color = ['grey'] * 6890
     if range_min != -1 or range_max != -1:
-        kpt_color[range_min:range_max] = ['red'] * (range_max - range_min)
-    axis_limit = 2
+        kpt_color[range_min:range_max+1] = ['red'] * (range_max - range_min + 1)
+    axis_limit = 1.2
     x_c = SMPL_MODEL[:, 0].mean()
     y_c = SMPL_MODEL[:, 1].mean()
     z_c = SMPL_MODEL[:, 2].mean()
 
     def draw_subplot(loc, elev, azim, roll):
-        ax = fig.add_subplot(*loc, projection='3d')
+        ax = fig.add_subplot(loc, projection='3d')
         ax.view_init(elev=elev, azim=azim, roll=roll, vertical_axis='y')
         ax.set_xlim3d([x_c - axis_limit / 2, x_c + axis_limit / 2])
         ax.set_ylim3d([y_c - axis_limit / 2, y_c + axis_limit / 2])
@@ -29,21 +29,19 @@ def draw_smpl_verices(range_min, range_max):
         x_3d, y_3d, z_3d = SMPL_MODEL[:, 0], SMPL_MODEL[:, 1], SMPL_MODEL[:, 2]
         ax.scatter(x_3d, y_3d, z_3d, marker='o', c=kpt_color)
 
-    draw_subplot((2, 2, 1), 1, 0, 0)
-    draw_subplot((2, 2, 2), 1, 60, 0)
-    draw_subplot((2, 2, 3), 1, -60, 0)
-    draw_subplot((2, 2, 4), 1, 120, 0)
+    draw_subplot(121, *angles[0])
+    draw_subplot(122, *angles[1])
 
     return fig
 
 
-def update_plot(thousand, hundred, tens, ones):
+def update_plot(thousand, hundred, tens, ones, angles):
     """
     드롭다운의 현재 선택을 바탕으로 get_range를 호출하고,
     그 결과를 plot_range_func의 입력으로 전달하여 Figure를 반환합니다.
     """
     rmin, rmax = get_range(thousand, hundred, tens, ones)
-    fig = draw_smpl_verices(rmin, rmax)
+    fig = draw_smpl_verices(rmin, rmax, angles)
     return fig
 
 
@@ -162,6 +160,19 @@ with gr.Blocks(title="3D Mesh Vertices visualization") as demo:
     range_min = gr.Number(label="시작 인덱스", value=-1)
     range_max = gr.Number(label="마지막 인덱스", value=-1)
 
+    _angles1 = gr.State([[1, 0, 0], [1, 180, 0]])
+    _fig = draw_smpl_verices(range_min.value, range_max.value, _angles1.value)
+    plot_output_1 = gr.Plot(_fig, label="Front / Back")
+    _angles2 = gr.State([[45, 0, 0], [45, 180, 0]])
+    _fig = draw_smpl_verices(range_min.value, range_max.value, _angles2.value)
+    plot_output_2 = gr.Plot(_fig, label="Overview Front / Back")
+    _angles3 = gr.State([[1, 45, 0], [1, -45, 0]])
+    _fig = draw_smpl_verices(range_min.value, range_max.value, _angles3.value)
+    plot_output_3 = gr.Plot(_fig, label="Front Side 45'/-45'")
+    _angles4 = gr.State([[1, 135, 0], [1, -135, 0]])
+    _fig = draw_smpl_verices(range_min.value, range_max.value, _angles4.value)
+    plot_output_4 = gr.Plot(_fig, label="Back Side 135'/-135'")
+
     milli.change(
         fn=create_update_func("thousand"),
         inputs=[milli, centi, deci],
@@ -178,14 +189,14 @@ with gr.Blocks(title="3D Mesh Vertices visualization") as demo:
         outputs=bi
     )
 
-    fig = draw_smpl_verices(range_min.value, range_max.value)
-    plot_output = gr.Plot(fig, label="Range Plot")
-
     # 드롭다운이 변경될 때마다 현재 선택 범위를 업데이트하여 최소, 최대 값을 표시
     for comp in [milli, centi, deci, bi]:
         comp.change(fn=get_range, inputs=[milli, centi, deci, bi],
                     outputs=[range_min, range_max])
-        comp.change(fn=update_plot, inputs=[milli, centi, deci, bi], outputs=plot_output)
+        comp.change(fn=update_plot, inputs=[milli, centi, deci, bi, _angles1], outputs=plot_output_1)
+        comp.change(fn=update_plot, inputs=[milli, centi, deci, bi, _angles2], outputs=plot_output_2)
+        comp.change(fn=update_plot, inputs=[milli, centi, deci, bi, _angles3], outputs=plot_output_3)
+        comp.change(fn=update_plot, inputs=[milli, centi, deci, bi, _angles4], outputs=plot_output_4)
 
 
 if __name__ == "__main__":
