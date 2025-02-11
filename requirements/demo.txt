@@ -1,0 +1,4 @@
+# Gradio demo (SMPL Visualization)
+gradio
+chumpy
+matplotlib>=3.2.0
