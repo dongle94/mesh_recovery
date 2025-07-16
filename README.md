@@ -1,42 +1,31 @@
-# mesh_recovery
-
+# Mesh Recovery
 
 ## Structure
-### Model
-- Object Detector
-  - YoloV5
-- Mesh Recorvery
-  - HybrIK-X
+### Models
+- **Object Detector**: YOLO for human detection
+- **Mesh Recovery**: HybrIK-X for 3D human mesh reconstruction
 
-### Support Task
-- VideoInputTask
-- ObjeectDetectionTask
-- HybrIKTask(HybrIK-X)
-- PostHybrIKTask(visualization)
-
-## Install
+## Installation
 ```shell
-conda create -n mr python==3.8.x -y
+conda create -n mr python==3.10 -y
 conda activate mr
-$ ./install.sh
+./install.sh
 ```
 
-download weights from release tab like below tree. And you should edit config(`./configs/config.yaml`)
+## Model Weights
+Download model weights and organize them as shown below for proper functionality:
 
 ```
-.
-└── weights
-    ├── hybrikx_rle_hrnet.pth
-    ├── smplx
-    │   ├── SMPLX_FEMALE.npz
-    │   ├── SMPLX_FEMALE.pkl
-    │   ├── SMPLX_MALE.npz
-    │   ├── SMPLX_MALE.pkl
-    │   ├── SMPLX_NEUTRAL.npz
-    │   ├── SMPLX_NEUTRAL.pkl
-    │   ├── smplx_npz.zip
-    │   └── version.txt
-    ├── smplx_kid_template.npy
-    ├── yolov5n.pt
-    └── yolov5x6.pt
+weights/
+├── hybrikx_rle_hrnet.pth
+├── smplx/
+│   ├── SMPLX_FEMALE.pkl
+│   ├── SMPLX_MALE.pkl
+│   └── SMPLX_NEUTRAL.pkl
+├── yolov5/
+│   └── yolov5m.pt
+└── yolov11/
+    └── yolo11m.pt
 ```
+
+Configure paths in `./configs/config.yaml` to match your setup.
