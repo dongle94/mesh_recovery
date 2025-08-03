@@ -29,3 +29,12 @@ weights/
 ```
 
 Configure paths in `./configs/config.yaml` to match your setup.
+
+
+## Third-party Licenses
+
+This project incorporates code from SPIN:
+- **SPIN (SMPL oPtimization IN the loop)** 
+- Copyright (c) 2019, University of Pennsylvania, Max Planck Institute for Intelligent Systems
+- Licensed under BSD 3-Clause License
+- See [LICENSE_SPIN](core/spin/LICENSE) for full license text
