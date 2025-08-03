@@ -5,7 +5,7 @@ ENV:
 
 # Media
 MEDIA:
-  SOURCE: "/home/dongle94/Videos/edu/sample.mp4"
+  SOURCE: 0
   OPT_AUTO: True
   FOURCC: "MJPG"
   WIDTH: 1280
@@ -21,7 +21,7 @@ MEDIA:
 
 # Object Detector
 DET:
-  MODEL_TYPE: yolov5
+  MODEL_TYPE: yolov11
   DET_MODEL_PATH: './weights/yolov11/yolo11m.pt'
   HALF: False
   CONF_THRES: 0.5
@@ -31,6 +31,14 @@ DET:
     NMS_IOU: 0.45
     AGNOSTIC_NMS: True
     MAX_DET: 20
+
+# SPIN
+SPIN:
+  DEVICE: 'cuda'  # 'cuda' or 'cpu'
+  SMPL_MEAN_PARAMS: './weights/spin/data/smpl_mean_params.npz'
+  CHECKPOINT: './weights/spin/hmr.pt'
+  SMPL_MODEL_DIR: './weights/spin/smpl'
+  JOINT_REGRESSOR_EXTRA: './weights/spin/data/J_regressor_extra.npy'
 
 # HYBRIK
 HYBRIK:

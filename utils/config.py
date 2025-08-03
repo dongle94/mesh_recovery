@@ -46,6 +46,13 @@ def set_config(file):
     config.track_model_path = _config['TRACK']['TRACK_MODEL_PATH']
     config.track_half = _config['TRACK']['TRACK_HALF']
 
+    # SPIN
+    config.spin_device = _config['SPIN']['DEVICE']
+    config.spin_smpl_mean_params = _config['SPIN']['SMPL_MEAN_PARAMS']
+    config.spin_checkpoint = _config['SPIN']['CHECKPOINT']
+    config.spin_smpl_model_dir = _config['SPIN']['SMPL_MODEL_DIR']
+    config.spin_joint_regressor_extra = _config['SPIN']['JOINT_REGRESSOR_EXTRA']
+
     # HYBRIK
     config.hybrik_ckpt = _config['HYBRIK']['CKPT']
     config.hybrikx = _config['HYBRIK']['X']
