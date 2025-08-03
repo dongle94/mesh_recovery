@@ -7,6 +7,8 @@ torchvision==0.19.1
 matplotlib
 tqdm
 requests
+
+# for training
 py-cpuinfo
 thop
 pandas
