@@ -2,4 +2,5 @@
 
 pip install -r ./requirements/common.txt
 pip install -r ./requirements/yolo.txt
+pip install -r ./requirements/spin.txt
 pip install -r ./requirements/hybrik.txt

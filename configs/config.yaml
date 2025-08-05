@@ -37,7 +37,7 @@ SPIN:
   DEVICE: 'cuda'  # 'cuda' or 'cpu'
   SMPL_MEAN_PARAMS: './weights/spin/data/smpl_mean_params.npz'
   CHECKPOINT: './weights/spin/hmr.pt'
-  SMPL_MODEL_DIR: './weights/spin/smpl'
+  SMPL_MODEL_DIR: './weights/smpl/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl'
   JOINT_REGRESSOR_EXTRA: './weights/spin/data/J_regressor_extra.npy'
 
 # HYBRIK
