@@ -100,17 +100,19 @@ class SPIN(nn.Module):
             self.is_initialized = False
             raise
     
-    def preprocess_image(self, image: np.ndarray, bbox: Optional[List] = None, input_res: int = 224) -> torch.Tensor:
+    def preprocess_image(self, image: np.ndarray, bbox: Optional[List] = None, input_res: int = 224) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Preprocess input image for model inference.
         
         Args:
-            image (np.ndarray): Input image in BGR/RGB format
+            image (np.ndarray): Input image in BGR format
             bbox (List, optional): Bounding box coordinates [x, y, w, h]
             input_res (int): Input resolution for the model. Defaults to 224.
             
         Returns:
-            torch.Tensor: Preprocessed image tensor
+            Tuple[torch.Tensor, torch.Tensor]: Preprocessed image tensors containing:
+                - img: Unnormalized image tensor (3, 224, 224) 
+                - norm_img: Normalized image tensor for model input (1, 3, 224, 224)
         """
         normalize_img = Normalize(mean=constants.IMG_NORM_MEAN, std=constants.IMG_NORM_STD)
         
@@ -146,102 +148,106 @@ class SPIN(nn.Module):
         
         return img, norm_img
 
-    def forward(self, img, images: torch.Tensor, bbox: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+    def forward(self, images: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Forward pass of the SPIN model.
         
         Args:
-            images (torch.Tensor): Batch of input images
-            bbox (torch.Tensor, optional): Bounding box coordinates
-            
+            images (torch.Tensor): Batch of preprocessed input images with shape (B, C, H, W)
+
         Returns:
-            Dict[str, torch.Tensor]: Dictionary containing model outputs:
-                - 'theta': SMPL parameters (pose + shape + camera)
-                - 'vertices': 3D mesh vertices
-                - 'joints': 3D joint coordinates
-                - 'joints_2d': 2D joint projections
+            Tuple[torch.Tensor, torch.Tensor, torch.Tensor]: Model outputs containing:
+                - pred_rotmat: SMPL pose parameters as rotation matrices
+                - pred_betas: SMPL shape parameters 
+                - pred_camera: Camera parameters
         """
         with torch.no_grad():
-            pred_rotmat, pred_betas, pred_camera = self.model(images.to(self.device))
-            pred_output = self.smpl(betas=pred_betas, body_pose=pred_rotmat[:,1:], global_orient=pred_rotmat[:,0].unsqueeze(1), pose2rot=False)
-            pred_vertices = pred_output.vertices
+            output = self.model(images.to(self.device))
 
-        # Calculate camera parameters for rendering
-        camera_translation = torch.stack([pred_camera[:,1], pred_camera[:,2], 2*constants.FOCAL_LENGTH/(constants.IMG_RES * pred_camera[:,0] +1e-9)],dim=-1)
-        camera_translation = camera_translation[0].cpu().numpy()
-        pred_vertices = pred_vertices[0].cpu().numpy()
-        img = img.permute(1,2,0).cpu().numpy()
-
-        
-        # Render parametric shape
-        img_shape = self.renderer(pred_vertices, camera_translation, img)
-        cv2.imshow('Rendered Image', img_shape)
-        cv2.waitKey(0)
+        return output
     
-    def predict(self, image: np.ndarray, bbox: Optional[List] = None) -> Dict[str, np.ndarray]:
-        """
-        Predict 3D pose and shape from a single image.
-        
-        Args:
-            image (np.ndarray): Input image
-            bbox (List, optional): Bounding box [x, y, w, h]
-            
-        Returns:
-            Dict[str, np.ndarray]: Prediction results containing:
-                - 'vertices': 3D mesh vertices
-                - 'joints': 3D joint coordinates
-                - 'pose': SMPL pose parameters
-                - 'shape': SMPL shape parameters
-                - 'camera': Camera parameters
-        """
-        # TODO: Implement single image prediction
-        pass
-    
-    def iterative_fitting(self, image: torch.Tensor, initial_params: Dict[str, torch.Tensor], 
-                         num_iterations: int = 3) -> Dict[str, torch.Tensor]:
-        """
-        Perform iterative fitting to refine SMPL parameters.
-        
-        Args:
-            image (torch.Tensor): Input image tensor
-            initial_params (Dict[str, torch.Tensor]): Initial SMPL parameters
-            num_iterations (int): Number of iterations for refinement
-            
-        Returns:
-            Dict[str, torch.Tensor]: Refined SMPL parameters
-        """
-        # TODO: Implement iterative fitting logic
-        pass
-    
-    def postprocess_output(self, output: Dict[str, torch.Tensor]) -> Dict[str, np.ndarray]:
+    def postprocess_output(self, output: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]) -> Tuple[object, np.ndarray]:
         """
         Postprocess model output for visualization or further processing.
         
         Args:
-            output (Dict[str, torch.Tensor]): Raw model output
-            
+            output (Tuple[torch.Tensor, torch.Tensor, torch.Tensor]): Raw model output tuple containing:
+                - pred_rotmat: SMPL pose parameters as rotation matrices
+                - pred_betas: SMPL shape parameters 
+                - pred_camera: Camera parameters
+                
         Returns:
-            Dict[str, np.ndarray]: Postprocessed results
+            Tuple[object, np.ndarray]: Postprocessed results containing:
+                - pred_output: SMPL model output with vertices and mesh data
+                - camera_translation: Camera translation parameters for rendering
         """
-        # TODO: Implement output postprocessing
-        pass
+        # Unpack the output
+        pred_rotmat, pred_betas, pred_camera = output
+        pred_output = self.smpl(
+            betas=pred_betas, 
+            body_pose=pred_rotmat[:,1:], 
+            global_orient=pred_rotmat[:,0].unsqueeze(1), 
+            pose2rot=False
+        )
+
+        # Calculate camera parameters for rendering
+        camera_translation = torch.stack([
+            pred_camera[:,1], 
+            pred_camera[:,2], 
+            2*constants.FOCAL_LENGTH/(constants.IMG_RES * pred_camera[:,0] +1e-9)
+        ], dim=-1)
+        camera_translation = camera_translation[0].cpu().numpy()          
+
+        return pred_output, camera_translation
     
-    def visualize_result(self, image: np.ndarray, vertices: np.ndarray, 
-                        joints: np.ndarray, camera: np.ndarray) -> np.ndarray:
+    def visualize_result(self, image: torch.Tensor, pred_output, camera_translation: np.ndarray) -> np.ndarray:
         """
         Visualize the prediction result on the input image.
         
         Args:
-            image (np.ndarray): Original input image
-            vertices (np.ndarray): 3D mesh vertices
-            joints (np.ndarray): 3D joint coordinates
-            camera (np.ndarray): Camera parameters
+            image (torch.Tensor): Preprocessed image tensor with shape (3, 224, 224) in RGB format
+            pred_output: SMPL model output containing vertices and other mesh data
+            camera_translation (np.ndarray): Camera translation parameters for rendering
             
         Returns:
-            np.ndarray: Image with overlaid 3D mesh and joints
+            np.ndarray: Rendered image with overlaid 3D mesh in BGR format
         """
-        # TODO: Implement visualization
+        # Convert SMPL output vertices to numpy array
+        pred_vertices = pred_output.vertices[0].cpu().numpy()
 
+        # Convert tensor (RGB) to numpy (BGR) for rendering
+        img = image.permute(1,2,0).cpu().numpy()[:,:,::-1]
+
+        img_shape = self.renderer(pred_vertices, camera_translation, img)
+
+        return img_shape
+
+
+    def predict(self, image: np.ndarray, bbox: Optional[List] = None) -> Tuple[torch.Tensor, object, np.ndarray]:
+        """
+        Predict 3D pose and shape from a single image.
+        
+        Args:
+            image (np.ndarray): Input image in BGR format
+            bbox (List, optional): Bounding box coordinates [x, y, w, h]
+            
+        Returns:
+            Tuple[torch.Tensor, object, np.ndarray]: Prediction results containing:
+                - im: Preprocessed image tensor (3, 224, 224)
+                - pred_output: SMPL model output with vertices and mesh data
+                - cam_transl: Camera translation parameters for rendering
+        """
+        # Preprocess the input image
+        im, norm_im = self.preprocess_image(image, bbox=bbox)
+
+        # Infer the model
+        output = self.forward(norm_im)
+
+        # Postprocess the output
+        pred_output, cam_transl = self.postprocess_output(output)
+        
+        return im, pred_output, cam_transl
+        
     
     def __repr__(self):
         return f"SPIN(device={self.device}, initialized={self.is_initialized})"
@@ -250,15 +256,57 @@ class SPIN(nn.Module):
 if __name__ == "__main__":
     from utils.logger import init_logger
     from utils.config import set_config, get_config
+    from core.media_loader import MediaLoader
+    from core.obj_detector import ObjectDetector
 
     set_config('./configs/config.yaml')
-    cfg = get_config()
+    _cfg = get_config()
 
-    init_logger(cfg)
+    init_logger(_cfg)
+    _logger = get_logger()
 
-    _spin = SPIN(config=cfg, device=cfg.spin_device, logger=get_logger())
+    _media_loader = MediaLoader(_cfg.media_source,
+                               logger=_logger,
+                               realtime=_cfg.media_realtime,
+                               bgr=_cfg.media_bgr,
+                               opt=_cfg)
+    _detector = ObjectDetector(cfg=_cfg)
+    _wt = 0 if _media_loader.is_imgs is True else 1
+    _spin = SPIN(config=_cfg, device=_cfg.spin_device, logger=_logger)
 
-    _im = cv2.imread('./data/images/army.png')
+    try:
+        while True:
+            _frame = _media_loader.get_frame()
+            _det = _detector.run(_frame)
 
-    _im0, _norm_im = _spin.preprocess_image(_im, bbox=None)
-    _output = _spin.forward(_im0, _norm_im)
+            d = _det[0] if len(_det) > 0 else None
+            if d is not None:
+                x1, y1, x2, y2 = map(int, d[:4])
+
+
+                _im, _pred_output, _cam_transl = _spin.predict(_frame, bbox=[x1, y1, x2 - x1, y2 - y1])
+
+                # Visualize the result
+                _img_res = _spin.visualize_result(_im, _pred_output, _cam_transl)
+                cv2.imshow('Rendered Image', _img_res)
+
+                # Draw bounding box and label on the original frame
+                cls = int(d[5])
+                cv2.rectangle(_frame, (x1, y1), (x2, y2), (96, 96, 216), thickness=2, lineType=cv2.LINE_AA)
+                cv2.putText(_frame, str(_detector.names[cls]), (x1, y1+20), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                            (96, 96, 96), thickness=1, lineType=cv2.LINE_AA)
+            else:
+                cv2.destroyWindow('Rendered Image')
+            cv2.imshow('Original Image', _frame)
+            
+            # Display the original frame with bounding box
+            if cv2.waitKey(_wt) == ord('q'):
+                break
+
+    except KeyboardInterrupt:
+        _logger.info("Process interrupted by user")
+    except Exception as e:
+        _logger.error(f"Error during processing: {e}")
+    finally:
+        cv2.destroyAllWindows()
+        _logger.info("Application closed")
