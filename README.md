@@ -3,7 +3,9 @@
 ## Structure
 ### Models
 - **Object Detector**: YOLO for human detection
-- **Mesh Recovery**: HybrIK-X for 3D human mesh reconstruction
+- **Mesh Recovery**: 
+  - SPIN for 3D human pose and shape estimation
+  - HybrIK-X for 3D human mesh reconstruction
 
 ## Installation
 ```shell
@@ -17,15 +19,31 @@ Download model weights and organize them as shown below for proper functionality
 
 ```
 weights/
-├── hybrikx_rle_hrnet.pth
+├── yolov11/
+│   └── yolo11m.pt
+├── smpl/
+│   ├── ...
+│   └── SMPL_NEUTRAL.pkl
 ├── smplx/
 │   ├── SMPLX_FEMALE.pkl
 │   ├── SMPLX_MALE.pkl
 │   └── SMPLX_NEUTRAL.pkl
-├── yolov5/
-│   └── yolov5m.pt
-└── yolov11/
-    └── yolo11m.pt
+├── spin/
+│   ├── data/
+│   │   ├── ...
+│   │   └── smpl_mean_params.npz
+│   └── hmr.pt
+├── hybrik/
+    └──hybrikx_rle_hrnet.pth
 ```
 
 Configure paths in `./configs/config.yaml` to match your setup.
+
+
+## Third-party Licenses
+
+This project incorporates code from SPIN:
+- **SPIN (SMPL oPtimization IN the loop)** 
+- Copyright (c) 2019, University of Pennsylvania, Max Planck Institute for Intelligent Systems
+- Licensed under BSD 3-Clause License
+- See [LICENSE_SPIN](core/spin/LICENSE) for full license text

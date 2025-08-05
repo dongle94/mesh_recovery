@@ -1,0 +1,11 @@
+pyopengl
+pyrender
+# scikit-image
+scipy
+# tensorboard
+smplx
+# spacepy
+# torchgeometry
+# torchvision
+trimesh
+# git+https://github.com/mattloper/chumpy.git
