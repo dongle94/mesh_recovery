@@ -1,13 +1,11 @@
-# neural-renderer-pytorch
 pyopengl
 pyrender
 # scikit-image
-scipy==1.0.0
+scipy
 # tensorboard
-# chumpy
 smplx
 # spacepy
-# torch==1.1.0
 # torchgeometry
 # torchvision
 trimesh
+# git+https://github.com/mattloper/chumpy.git
