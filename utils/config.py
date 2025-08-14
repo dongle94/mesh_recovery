@@ -40,12 +40,6 @@ def set_config(file):
     config.yolo_agnostic_nms = _config['DET']['YOLO']['AGNOSTIC_NMS']
     config.yolo_max_det = _config['DET']['YOLO']['MAX_DET']
 
-    # TRACKER
-    config.track_use_encoder = _config['TRACK']['TRACK_USE_ENCODER']
-    config.track_model_type = _config['TRACK']['TRACK_MODEL_TYPE']
-    config.track_model_path = _config['TRACK']['TRACK_MODEL_PATH']
-    config.track_half = _config['TRACK']['TRACK_HALF']
-
     # SPIN
     config.spin_device = _config['SPIN']['DEVICE']
     config.spin_smpl_mean_params = _config['SPIN']['SMPL_MEAN_PARAMS']

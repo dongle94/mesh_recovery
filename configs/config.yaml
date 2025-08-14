@@ -51,13 +51,6 @@ HYBRIK:
   SAVE_MESH_VID: False
   DRAW_HEATMAP: False
 
-# Object Tracker
-TRACK:
-  TRACK_USE_ENCODER: false
-  TRACK_MODEL_TYPE: "deepocsort"
-  TRACK_MODEL_PATH: "./weights/osnet_x0_25_market1501.pt"
-  TRACK_HALF: false
-
 # Logger
 LOG:
   LOG_LEVEL: 'debug'
