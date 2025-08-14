@@ -11,39 +11,11 @@ from utils.logger import get_logger
 
 
 class ObjectDetector(object):
-    """
-    A general object detection class that supports various YOLO frameworks such as YOLOv5, YOLOv8, YOLOv10, and YOLOv11.
-
-    Attributes:
-        logger (logging.Logger): Logger instance for logging.
-        cfg (dict): Configuration dictionary loaded from a YAML file.
-        detector_type (str): The type of detector being used (e.g., YOLOv5, YOLOv8).
-        detector (object): Instance of the specific YOLO detector class.
-        names (list): List of class names used by the detector.
-        f_cnt (int): Frame counter for performance logging.
-        ts (list): List of times for pre-processing, inference, and post-processing.
-
-    Raises:
-        FileNotFoundError: If the specified weight file is not found.
-        NotImplementedError: If an unsupported detector type is provided.
-    """
     def __init__(self, cfg=None):
-        """
-        Initialize the ObjectDetector instance.
-
-        Args:
-            cfg (dict): Configuration dictionary containing detector settings.
-
-        Raises:
-            FileNotFoundError: If the weight file does not exist.
-            NotImplementedError: If the detector type is unsupported.
-        """
         self.logger = get_logger()
         self.cfg = cfg
 
         weight = os.path.abspath(cfg.det_model_path)
-        if not os.path.isfile(weight):
-            raise FileNotFoundError(f"Weight file not found: {weight}")
         self.detector_type = cfg.det_model_type.lower()
 
         device = cfg.device
@@ -54,7 +26,7 @@ class ObjectDetector(object):
 
         self.framework = None
 
-        if self.detector_type in ["yolov5", "yolov8", "yolov10", "yolov11"]:
+        if self.detector_type in ["yolov5", "yolov8", "yolov10", "yolov11", "yolov12"]:
             img_size = cfg.yolo_img_size
             iou_thres = cfg.yolo_nms_iou
             agnostic = cfg.yolo_agnostic_nms
@@ -105,64 +77,42 @@ class ObjectDetector(object):
         self.ts = [0., 0., 0.]
 
     def run(self, img):
-        """
-        Perform object detection on a single image.
+        if self.detector_type in ["yolov5", "yolov8", "yolov10", "yolov11", "yolov12"]:
+            t0 = self.detector.get_time()
 
-        Args:
-            img (numpy.ndarray): The input image for detection.
+            img, orig_img = self.detector.preprocess(img)
+            im_shape = img.shape
+            im0_shape = orig_img.shape
+            t1 = self.detector.get_time()
 
-        Returns:
-            list: List of detection results, including bounding box coordinates, class IDs, and scores.
+            preds = self.detector.infer(img)
+            t2 = self.detector.get_time()
 
-        Raises:
-            Exception: If an error occurs during detection.
-        """
-        try:
-            if self.detector_type in ["yolov5", "yolov8", "yolov10", "yolov11"]:
-                t0 = self.detector.get_time()
+            det = self.detector.postprocess(preds, im_shape, im0_shape)
+            t3 = self.detector.get_time()
 
-                img, orig_img = self.detector.preprocess(img)
-                im_shape = img.shape
-                im0_shape = orig_img.shape
-                t1 = self.detector.get_time()
+            # calculate time & logging
+            self.f_cnt += 1
+            self.ts[0] += t1 - t0
+            self.ts[1] += t2 - t1
+            self.ts[2] += t3 - t2
+            if self.f_cnt % self.cfg.console_log_interval == 0:
+                self.logger.debug(
+                    f"{self.detector_type} detector {self.f_cnt} Frames average time - "
+                    f"preproc: {self.ts[0]/self.f_cnt:.6f} sec / "
+                    f"infer: {self.ts[1] / self.f_cnt:.6f} sec / " 
+                    f"postproc: {self.ts[2] / self.f_cnt:.6f} sec")
 
-                preds = self.detector.infer(img)
-                t2 = self.detector.get_time()
+        else:
+            pred, det = None, None
 
-                det = self.detector.postprocess(preds, im_shape, im0_shape)
-                t3 = self.detector.get_time()
-
-                # calculate time & logging
-                self.f_cnt += 1
-                self.ts[0] += t1 - t0
-                self.ts[1] += t2 - t1
-                self.ts[2] += t3 - t2
-                if self.f_cnt % self.cfg.console_log_interval == 0:
-                    self.logger.debug(
-                        f"{self.detector_type} detector {self.f_cnt} Frames average time - "
-                        f"preproc: {self.ts[0]/self.f_cnt:.6f} sec / "
-                        f"infer: {self.ts[1] / self.f_cnt:.6f} sec / " 
-                        f"postproc: {self.ts[2] / self.f_cnt:.6f} sec")
-
-            else:
-                pred, det = None, None
-
-            return det
-        except Exception as e:
-            self.logger.error(f"Error during detection: {e}")
-            raise
+        return det
 
     def run_np(self, img):
-        """
-        Perform object detection on a single image and return results as a numpy array.
-
-        Args:
-            img (numpy.ndarray): The input image for detection.
-
-        Returns:
-            numpy.ndarray: Detection results in numpy array format.
-        """
-        return self.run(img).cpu().numpy() if self.framework == 'torch' else self.run(img)
+        det = self.run(img)
+        if self.framework == 'torch':
+            det = det.cpu().numpy()
+        return det
 
 
 if __name__ == "__main__":
@@ -180,10 +130,12 @@ if __name__ == "__main__":
 
     _detector = ObjectDetector(cfg=_cfg)
 
+    _bgr = getattr(_cfg, 'media_bgr', True)
+    _realtime = getattr(_cfg, 'media_realtime', False)
     media_loader = MediaLoader(_cfg.media_source,
                                logger=_logger,
-                               realtime=_cfg.media_realtime,
-                               bgr=_cfg.media_bgr,
+                               realtime=_realtime,
+                               bgr=_bgr,
                                opt=_cfg)
     wt = 0 if media_loader.is_imgs else 1 / media_loader.dataset.fps
 
@@ -197,8 +149,8 @@ if __name__ == "__main__":
             x1, y1, x2, y2 = map(int, d[:4])
             cls = int(d[5])
             cv2.rectangle(frame, (x1, y1), (x2, y2), (96, 96, 216), thickness=2, lineType=cv2.LINE_AA)
-            cv2.putText(frame, str(_detector.names[cls]), (x1, y1+20), cv2.FONT_HERSHEY_SIMPLEX, 1,
-                        (96, 96, 96), thickness=1, lineType=cv2.LINE_AA)
+            cv2.putText(frame, str(_detector.names[cls])+f": {d[4]:.2f}", (x1, y1+20), cv2.FONT_HERSHEY_SIMPLEX, 1,
+                        (0, 0, 255), thickness=1, lineType=cv2.LINE_AA)
 
         et = time.time()
         if media_loader.is_imgs:
