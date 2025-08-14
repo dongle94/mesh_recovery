@@ -31,25 +31,6 @@ def check_sources(source):
 
 
 class MediaLoader(object):
-    """
-    A utility class to load and handle various media types including images, videos, and streams.
-
-    Args:
-        source (str): The media source path (file, directory, or stream URL).
-        stride (int, optional): Frame sampling stride. Defaults to 1.
-        logger (Logger, optional): Logger instance for logging. Defaults to None.
-        realtime (bool, optional): Enable real-time streaming. Defaults to False.
-        opt (Namespace, optional): Configuration options. Defaults to None.
-        bgr (bool, optional): Load frames in BGR format if True. Defaults to True.
-
-    Attributes:
-        is_imgs (bool): Whether the source is a collection of images.
-        is_vid (bool): Whether the source is a video file.
-        is_stream (bool): Whether the source is a video stream.
-        dataset (object): The dataset loader instance for the selected source.
-        width (int): Width of the frames.
-        height (int): Height of the frames.
-    """
     def __init__(self, source, stride=1, logger=None, realtime=False, opt=None, bgr=True):
 
         self.stride = stride
@@ -88,32 +69,13 @@ class MediaLoader(object):
 
         self.dataset = dataset
 
-        self.logger.info(f"-- Frame Metadata: {self.width}x{self.height}, FPS: {self.dataset.fps}")
-        self.logger.info("-- MediaLoader is ready")
-
     def get_frame(self):
-        """
-        Fetch the next frame from the loaded media source.
-
-        Returns:
-            numpy.ndarray or None: The next frame as an image array if available, else None.
-
-        Raises:
-            StopIteration: If the dataset has no more frames to provide.
-        """
         im = self.dataset.__next__()
         if im is None:
             raise StopIteration("No more frames available")
         return im
 
     def show_frame(self, title: str = 'frame', wait_sec: int = 0):
-        """
-        Display the current frame in a window.
-
-        Args:
-            title (str, optional): Title of the display window. Defaults to 'frame'.
-            wait_sec (int, optional): Delay in milliseconds for window display. Defaults to 0.
-        """
         try:
             frame = self.get_frame()
             if self.bgr is False:
@@ -131,9 +93,6 @@ class MediaLoader(object):
             raise
 
     def __del__(self):
-        """
-        Destructor to release resources.
-        """
         if hasattr(self, 'dataset'):
             del self.dataset
 
@@ -142,6 +101,7 @@ if __name__ == "__main__":
     from utils.logger import init_logger, get_logger
     from utils.config import set_config, get_config
 
+    # s = sys.argv[1]      # video file, webcam, rtsp stream... 0etc
     set_config('./configs/config.yaml')
     _cfg = get_config()
 
@@ -153,6 +113,8 @@ if __name__ == "__main__":
                                 realtime=_cfg.media_realtime,
                                 bgr=_cfg.media_bgr,
                                 opt=_cfg)
+    print(f"-- Frame Metadata: {_media_loader.width}x{_media_loader.height}, FPS: {_media_loader.dataset.fps}")
+    print("-- MediaLoader is ready")
 
     _title = 'frame'
     wt = int((0 if _media_loader.is_imgs else 1 / _media_loader.dataset.fps) * 1000)

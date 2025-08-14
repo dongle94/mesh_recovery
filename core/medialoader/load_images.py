@@ -7,7 +7,7 @@ IMG_FORMATS = 'bmp', 'dng', 'jpeg', 'jpg', 'mpo', 'png', 'tif', 'tiff', 'webp', 
 
 
 class LoadImages(LoadSample):
-    def __init__(self, path, bgr=True, logger=None  ):
+    def __init__(self, path, bgr=True, logger=None):
         super().__init__()
 
         self.logger = logger        
