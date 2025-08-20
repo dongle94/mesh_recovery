@@ -190,17 +190,37 @@ class SPIN(nn.Module):
             pose2rot=False
         )
 
-        # Calculate camera parameters for rendering
+        # Calculate camera parameters for renderer (tx, ty, depth)
         camera_translation = torch.stack([
             pred_camera[:,1], 
             pred_camera[:,2], 
             2*constants.FOCAL_LENGTH/(constants.IMG_RES * pred_camera[:,0] +1e-9)
         ], dim=-1)
-        camera_translation = camera_translation[0].cpu().numpy()          
+        camera_translation = camera_translation[0].cpu().numpy()
 
-        return pred_output, camera_translation
+        # Keep raw pred_camera (s, tx, ty) for 2D projection
+        pred_camera_raw = pred_camera[0].cpu().numpy()
+
+        return pred_output, camera_translation, pred_camera_raw
     
-    def visualize_result(self, image: torch.Tensor, pred_output, camera_translation: np.ndarray) -> np.ndarray:
+    @staticmethod
+    def project_joints_weak(joints_3d: np.ndarray, pred_camera_raw: np.ndarray, img_res: int = constants.IMG_RES) -> np.ndarray:
+        """
+        Project 3D joints to 2D using weak-perspective camera predicted by network.
+        pred_camera_raw: [s, tx, ty]
+        - If tx,ty are in [-1,1] (normalized), convert to pixel coords.
+        - Otherwise assume tx,ty are already in pixel units.
+        """
+        s, tx, ty = float(pred_camera_raw[0]), float(pred_camera_raw[1]), float(pred_camera_raw[2])
+        proj = s * joints_3d[:, :2] + np.array([tx, ty])
+
+        # heuristic: if translation small (~[-1,1]) treat as normalized coord -> convert to pixels
+        if abs(tx) <= 1.5 and abs(ty) <= 1.5:
+            proj = (proj + 1.0) * (img_res / 2.0)
+
+        return proj
+
+    def visualize_result(self, image: torch.Tensor, pred_output, camera_translation: np.ndarray, pred_camera_raw: np.ndarray = None) -> np.ndarray:
         """
         Visualize the prediction result on the input image.
         
@@ -218,9 +238,22 @@ class SPIN(nn.Module):
         # Convert tensor (RGB) to numpy (BGR) for rendering
         img = image.permute(1,2,0).cpu().numpy()[:,:,::-1]
 
+        joints_3d = pred_output.joints[0].cpu().numpy()  # (N_joints, 3)
+
+        j2d_px = self.project_joints_weak(joints_3d, pred_camera_raw, img_res=constants.IMG_RES)
+
+        # optional: clip within image
+        j2d_px[:, 0] = np.clip(j2d_px[:, 0], 0, img.shape[1]-1)
+        j2d_px[:, 1] = np.clip(j2d_px[:, 1], 0, img.shape[0]-1)
+        
+        # now j2d_px are pixel coordinates in the cropped/resized image (IMG_RES x IMG_RES)
+        img_pose = img.copy()
+        for i in range(j2d_px.shape[0]):
+            cv2.circle(img_pose, (int(j2d_px[i, 0]), int(j2d_px[i, 1])), 2, (0, 255, 0), -1)
+
         img_shape = self.renderer(pred_vertices, camera_translation, img)
 
-        return img_shape
+        return img_shape, img_pose
 
 
     def predict(self, image: np.ndarray, bbox: Optional[List] = None) -> Tuple[torch.Tensor, object, np.ndarray]:
@@ -244,11 +277,11 @@ class SPIN(nn.Module):
         output = self.forward(norm_im)
 
         # Postprocess the output
-        pred_output, cam_transl = self.postprocess_output(output)
-        
-        return im, pred_output, cam_transl
-        
-    
+        pred_output, cam_transl, pred_camera_raw = self.postprocess_output(output)
+
+        return im, pred_output, cam_transl, pred_camera_raw
+
+
     def __repr__(self):
         return f"SPIN(device={self.device}, initialized={self.is_initialized})"
 
@@ -284,11 +317,12 @@ if __name__ == "__main__":
                 x1, y1, x2, y2 = map(int, d[:4])
 
 
-                _im, _pred_output, _cam_transl = _spin.predict(_frame, bbox=[x1, y1, x2 - x1, y2 - y1])
+                _im, _pred_output, _cam_transl, _pred_camera_raw = _spin.predict(_frame, bbox=[x1, y1, x2 - x1, y2 - y1])
 
                 # Visualize the result
-                _img_res = _spin.visualize_result(_im, _pred_output, _cam_transl)
+                _img_res, _img_pose = _spin.visualize_result(_im, _pred_output, _cam_transl, _pred_camera_raw)
                 cv2.imshow('Rendered Image', _img_res)
+                cv2.imshow('Pose Image', _img_pose)
 
                 # Draw bounding box and label on the original frame
                 cls = int(d[5])
