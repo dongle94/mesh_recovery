@@ -166,7 +166,7 @@ class SPIN(nn.Module):
 
         return output
     
-    def postprocess_output(self, output: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]) -> Tuple[object, np.ndarray]:
+    def postprocess_output(self, output: Tuple[torch.Tensor, torch.Tensor, torch.Tensor]) -> Tuple[object, np.ndarray, np.ndarray]:
         """
         Postprocess model output for visualization or further processing.
         
@@ -177,31 +177,42 @@ class SPIN(nn.Module):
                 - pred_camera: Camera parameters
                 
         Returns:
-            Tuple[object, np.ndarray]: Postprocessed results containing:
+            Tuple[object, np.ndarray, np.ndarray]: Postprocessed results containing:
                 - pred_output: SMPL model output with vertices and mesh data
                 - camera_translation: Camera translation parameters for rendering
+                - j2d_px: 2D joint projections in cropped image coords (IMG_RES x IMG_RES)
         """
         # Unpack the output
         pred_rotmat, pred_betas, pred_camera = output
         pred_output = self.smpl(
-            betas=pred_betas, 
-            body_pose=pred_rotmat[:,1:], 
-            global_orient=pred_rotmat[:,0].unsqueeze(1), 
-            pose2rot=False
+            betas=pred_betas,
+            body_pose=pred_rotmat[:, 1:],
+            global_orient=pred_rotmat[:, 0].unsqueeze(1),
+            pose2rot=False,
         )
 
         # Calculate camera parameters for renderer (tx, ty, depth)
         camera_translation = torch.stack([
-            pred_camera[:,1], 
-            pred_camera[:,2], 
-            2*constants.FOCAL_LENGTH/(constants.IMG_RES * pred_camera[:,0] +1e-9)
+            pred_camera[:, 1],
+            pred_camera[:, 2],
+            2 * constants.FOCAL_LENGTH / (constants.IMG_RES * pred_camera[:, 0] + 1e-9),
         ], dim=-1)
         camera_translation = camera_translation[0].cpu().numpy()
 
         # Keep raw pred_camera (s, tx, ty) for 2D projection
         pred_camera_raw = pred_camera[0].cpu().numpy()
 
-        return pred_output, camera_translation, pred_camera_raw
+        # Project 3D joints to 2D (in cropped/resized image coordinates)
+        joints_3d = pred_output.joints[0].cpu().numpy()  # (N_joints, 3)
+        j2d_px = self.project_joints_weak(joints_3d, pred_camera_raw, img_res=constants.IMG_RES)
+
+        # Clip to valid pixel range in cropped image
+        # note: j2d_px is (N,2) in IMG_RES x IMG_RES coordinate system
+        j2d_px[:, 0] = np.clip(j2d_px[:, 0], 0, constants.IMG_RES - 1)
+        j2d_px[:, 1] = np.clip(j2d_px[:, 1], 0, constants.IMG_RES - 1)
+
+        # We intentionally do NOT expose pred_camera_raw in the public return value
+        return pred_output, camera_translation, j2d_px
     
     @staticmethod
     def project_joints_weak(joints_3d: np.ndarray, pred_camera_raw: np.ndarray, img_res: int = constants.IMG_RES) -> np.ndarray:
@@ -220,7 +231,7 @@ class SPIN(nn.Module):
 
         return proj
 
-    def visualize_result(self, image: torch.Tensor, pred_output, camera_translation: np.ndarray, pred_camera_raw: np.ndarray = None) -> np.ndarray:
+    def visualize_result(self, image: torch.Tensor, pred_output, camera_translation: np.ndarray, j2d_px: Optional[np.ndarray] = None) -> Tuple[np.ndarray, np.ndarray]:
         """
         Visualize the prediction result on the input image.
         
@@ -238,25 +249,19 @@ class SPIN(nn.Module):
         # Convert tensor (RGB) to numpy (BGR) for rendering
         img = image.permute(1,2,0).cpu().numpy()[:,:,::-1]
 
-        joints_3d = pred_output.joints[0].cpu().numpy()  # (N_joints, 3)
-
-        j2d_px = self.project_joints_weak(joints_3d, pred_camera_raw, img_res=constants.IMG_RES)
-
-        # optional: clip within image
-        j2d_px[:, 0] = np.clip(j2d_px[:, 0], 0, img.shape[1]-1)
-        j2d_px[:, 1] = np.clip(j2d_px[:, 1], 0, img.shape[0]-1)
-        
-        # now j2d_px are pixel coordinates in the cropped/resized image (IMG_RES x IMG_RES)
+        # use provided 2D joint projections (in cropped IMG_RES coords) if available
         img_pose = img.copy()
-        for i in range(j2d_px.shape[0]):
-            cv2.circle(img_pose, (int(j2d_px[i, 0]), int(j2d_px[i, 1])), 2, (0, 255, 0), -1)
+        if j2d_px is not None:
+            # draw joints on the cropped image
+            for i in range(j2d_px.shape[0]):
+                cv2.circle(img_pose, (int(j2d_px[i, 0]), int(j2d_px[i, 1])), 2, (0, 255, 0), -1)
 
         img_shape = self.renderer(pred_vertices, camera_translation, img)
 
         return img_shape, img_pose
 
 
-    def predict(self, image: np.ndarray, bbox: Optional[List] = None) -> Tuple[torch.Tensor, object, np.ndarray]:
+    def predict(self, image: np.ndarray, bbox: Optional[List] = None) -> Tuple[torch.Tensor, object, np.ndarray, np.ndarray]:
         """
         Predict 3D pose and shape from a single image.
         
@@ -265,10 +270,11 @@ class SPIN(nn.Module):
             bbox (List, optional): Bounding box coordinates [x, y, w, h]
             
         Returns:
-            Tuple[torch.Tensor, object, np.ndarray]: Prediction results containing:
+            Tuple[torch.Tensor, object, np.ndarray, np.ndarray]: Prediction results containing:
                 - im: Preprocessed image tensor (3, 224, 224)
                 - pred_output: SMPL model output with vertices and mesh data
                 - cam_transl: Camera translation parameters for rendering
+                - j2d_px: 2D joint projections in cropped image coords (IMG_RES x IMG_RES)
         """
         # Preprocess the input image
         im, norm_im = self.preprocess_image(image, bbox=bbox)
@@ -276,10 +282,10 @@ class SPIN(nn.Module):
         # Infer the model
         output = self.forward(norm_im)
 
-        # Postprocess the output
-        pred_output, cam_transl, pred_camera_raw = self.postprocess_output(output)
+        # Postprocess the output (also computes 2D joint projections in cropped coords)
+        pred_output, cam_transl, j2d_px = self.postprocess_output(output)
 
-        return im, pred_output, cam_transl, pred_camera_raw
+        return im, pred_output, cam_transl, j2d_px
 
 
     def __repr__(self):
@@ -316,11 +322,10 @@ if __name__ == "__main__":
             if d is not None:
                 x1, y1, x2, y2 = map(int, d[:4])
 
+                _im, _pred_output, _cam_transl, _j2d_px = _spin.predict(_frame, bbox=[x1, y1, x2 - x1, y2 - y1])
 
-                _im, _pred_output, _cam_transl, _pred_camera_raw = _spin.predict(_frame, bbox=[x1, y1, x2 - x1, y2 - y1])
-
-                # Visualize the result
-                _img_res, _img_pose = _spin.visualize_result(_im, _pred_output, _cam_transl, _pred_camera_raw)
+                # Visualize the result (use joint projections computed in postprocess)
+                _img_res, _img_pose = _spin.visualize_result(_im, _pred_output, _cam_transl, _j2d_px)
                 cv2.imshow('Rendered Image', _img_res)
                 cv2.imshow('Pose Image', _img_pose)
 
