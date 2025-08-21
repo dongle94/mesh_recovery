@@ -130,12 +130,10 @@ if __name__ == "__main__":
 
     _detector = ObjectDetector(cfg=_cfg)
 
-    _bgr = getattr(_cfg, 'media_bgr', True)
-    _realtime = getattr(_cfg, 'media_realtime', False)
     media_loader = MediaLoader(_cfg.media_source,
                                logger=_logger,
-                               realtime=_realtime,
-                               bgr=_bgr,
+                               realtime=_cfg.media_realtime,
+                               bgr=_cfg.media_bgr,
                                opt=_cfg)
     wt = 0 if media_loader.is_imgs else 1 / media_loader.dataset.fps
 
