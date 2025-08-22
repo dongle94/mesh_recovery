@@ -67,11 +67,21 @@ class VIBE(nn.Module):
             hidden_size=1024,
             add_linear=True,
             use_residual=True,
-            pretrained=os.path.abspath(self.config.vibe_spin_checkpoint),
-            smpl_mean_params=os.path.abspath(self.config.vibe_smpl_mean_params)
+            pretrained=os.path.abspath(os.path.join(self.config.vibe_data_dir, 'spin_model_checkpoint.pth.tar')),
+            smpl_mean_params=os.path.abspath(os.path.join(self.config.vibe_data_dir, 'smpl_mean_params.npz')),
         ).to(self.device)
 
-        self.model.eval()        
+        if self.config.vibe_use_3dpw:
+            pretrained_file = os.path.join(self.config.vibe_data_dir, 'vibe_model_w_3dpw.pth.tar')
+        else:
+            pretrained_file = os.path.join(self.config.vibe_data_dir, 'vibe_model_wo_3dpw.pth.tar')
+
+        ckpt = torch.load(pretrained_file, weights_only=False)
+        self.logger.info(f'Performance of pretrained model on 3DPW: {ckpt["performance"]}')
+        ckpt = ckpt['gen_state_dict']
+        self.model.load_state_dict(ckpt, strict=False)
+        self.logger.info(f'Loaded pretrained weights from \"{pretrained_file}\"')
+
         self.is_initialized = True
 
     def preprocess_video(self, video_path: str) -> Tuple[np.ndarray, Dict]:
