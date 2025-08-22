@@ -25,12 +25,12 @@ from core.vibe.models.spin import Regressor, hmr
 
 class TemporalEncoder(nn.Module):
     def __init__(
-            self,
-            n_layers=1,
-            hidden_size=2048,
-            add_linear=False,
-            bidirectional=False,
-            use_residual=True
+        self,
+        n_layers=1,
+        hidden_size=2048,
+        add_linear=False,
+        bidirectional=False,
+        use_residual=True
     ):
         super(TemporalEncoder, self).__init__()
 
@@ -64,15 +64,16 @@ class TemporalEncoder(nn.Module):
 
 class VIBE(nn.Module):
     def __init__(
-            self,
-            seqlen,
-            batch_size=64,
-            n_layers=1,
-            hidden_size=2048,
-            add_linear=False,
-            bidirectional=False,
-            use_residual=True,
-            pretrained='weights/vibe/spin_model_checkpoint.pth.tar',
+        self,
+        seqlen,
+        batch_size=64,
+        n_layers=1,
+        hidden_size=2048,
+        add_linear=False,
+        bidirectional=False,
+        use_residual=True,
+        pretrained='weights/vibe/spin_model_checkpoint.pth.tar',
+        smpl_mean_params='weights/vibe/smpl_mean_params.npz',
     ):
 
         super(VIBE, self).__init__()
@@ -89,7 +90,7 @@ class VIBE(nn.Module):
         )
 
         # regressor can predict cam, pose and shape params in an iterative way
-        self.regressor = Regressor()
+        self.regressor = Regressor(smpl_mean_params=smpl_mean_params)
 
         if pretrained and os.path.isfile(pretrained):
             pretrained_dict = torch.load(pretrained)['model']
@@ -118,15 +119,16 @@ class VIBE(nn.Module):
 
 class VIBE_Demo(nn.Module):
     def __init__(
-            self,
-            seqlen,
-            batch_size=64,
-            n_layers=1,
-            hidden_size=2048,
-            add_linear=False,
-            bidirectional=False,
-            use_residual=True,
-            pretrained='weights/vibe/spin_model_checkpoint.pth.tar',
+        self,
+        seqlen,
+        batch_size=64,
+        n_layers=1,
+        hidden_size=2048,
+        add_linear=False,
+        bidirectional=False,
+        use_residual=True,
+        pretrained='weights/vibe/spin_model_checkpoint.pth.tar',
+        smpl_mean_params='weights/vibe/smpl_mean_params.npz',
     ):
 
         super(VIBE_Demo, self).__init__()
@@ -142,12 +144,12 @@ class VIBE_Demo(nn.Module):
             use_residual=use_residual,
         )
 
-        self.hmr = hmr()
+        self.hmr = hmr(smpl_mean_params=smpl_mean_params)
         checkpoint = torch.load(pretrained)
         self.hmr.load_state_dict(checkpoint['model'], strict=False)
 
         # regressor can predict cam, pose and shape params in an iterative way
-        self.regressor = Regressor()
+        self.regressor = Regressor(smpl_mean_params=smpl_mean_params)
 
         if pretrained and os.path.isfile(pretrained):
             pretrained_dict = torch.load(pretrained)['model']
