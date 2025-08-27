@@ -5,7 +5,7 @@ ENV:
 
 # Media
 MEDIA:
-  SOURCE: 0
+  SOURCE: data/videos/sample_video.mp4  # /home/dongle94/Videos/IMG_1511.MOV
   OPT_AUTO: True
   FOURCC: "MJPG"
   WIDTH: 1280
@@ -39,6 +39,21 @@ SPIN:
   CHECKPOINT: './weights/spin/hmr.pt'
   SMPL_MODEL_DIR: './weights/smpl/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl'
   JOINT_REGRESSOR_EXTRA: './weights/spin/data/J_regressor_extra.npy'
+
+# VIBE
+VIBE:
+  DEVICE: 'cuda'  # 'cuda' or 'cpu'
+  DATA_DIR: './weights/vibe/'
+  USE_3DPW: False
+  BATCH_SIZE: 64
+  # JOINT_REGRESSOR_EXTRA: './weights/vibe/data/J_regressor_extra.npy'
+  # CHECKPOINT: './weights/vibe/vibe.pth'
+  # SMPL_MODEL_DIR: './weights/smpl/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl'
+  # SEQLEN: 16
+  # N_LAYERS: 2
+  # HIDDEN_SIZE: 1024
+  # ADD_LINEAR: True
+  # USE_RESIDUAL: True
 
 # HYBRIK
 HYBRIK:
