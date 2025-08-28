@@ -147,6 +147,7 @@ class VIBE_Demo(nn.Module):
         self.hmr = hmr(smpl_mean_params=smpl_mean_params)
         checkpoint = torch.load(pretrained)
         self.hmr.load_state_dict(checkpoint['model'], strict=False)
+        self.smpl = self.hmr.smpl
 
         # regressor can predict cam, pose and shape params in an iterative way
         self.regressor = Regressor(smpl_mean_params=smpl_mean_params)
