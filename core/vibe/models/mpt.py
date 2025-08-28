@@ -21,19 +21,26 @@ def run_tracker(image_folder, detector):
 
     print('Running Multi-Person-Tracker')
     trackers = []
-    for batch in tqdm(sorted(os.listdir(image_folder))):
-        img = cv2.imread(os.path.join(image_folder, batch))
 
+    files = [f for f in os.listdir(image_folder)
+             if os.path.isfile(os.path.join(image_folder, f)) and
+                f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+    files = sorted(files)
+    for batch in tqdm(files):
+        img = cv2.imread(os.path.join(image_folder, batch))
         predictions = detector.run(img)
 
+        # collect all detections for this frame, then update tracker once
+        dets_list = []
         for pred in predictions:
-            dets = np.array([pred[:5]])
+            dets_list.append(pred[:5])
 
-            if dets.shape[0] > 0:
-                track_bbs_ids = tracker.update(dets)
-            else:
-                track_bbs_ids = np.empty((0, 5))
-            trackers.append(track_bbs_ids)
+        if len(dets_list) > 0:
+            dets = np.vstack(dets_list)
+            track_bbs_ids = tracker.update(dets)
+        else:
+            track_bbs_ids = np.empty((0, 5))
+        trackers.append(track_bbs_ids)
 
     return trackers
 
