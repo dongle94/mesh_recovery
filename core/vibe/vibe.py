@@ -18,6 +18,8 @@ Contact: ps-license@tuebingen.mpg.de
 import os
 import sys
 import cv2
+import shutil
+import colorsys
 import numpy as np
 import torch
 import torch.nn as nn
@@ -33,12 +35,15 @@ if str(ROOT) not in sys.path:
 
 from utils.logger import get_logger
 from core.vibe.models.vibe import VIBE_Demo
+from core.vibe.utils.renderer import Renderer
 from core.vibe.dataset.inference import Inference
 from core.vibe.models.mpt import run_tracker, prepare_output_tracks
 from core.vibe.utils.demo_utils import (
 	video_to_images,
+    images_to_video,
     convert_crop_cam_to_orig_img,
-    convert_crop_coords_to_orig_img
+    convert_crop_coords_to_orig_img,
+    prepare_rendering_results
 )
 
 
@@ -153,7 +158,8 @@ if __name__ == "__main__":
     init_logger(_cfg)
     _logger = get_logger()
 
-    OUTPUT_FOLDER = Path("out") / os.path.basename(_cfg.media_source)
+    OUTPUT_FOLDER = Path("out") / os.path.basename(os.path.splitext(_cfg.media_source)[0])
+    video_file = _cfg.media_source
 
     _detector = ObjectDetector(cfg=_cfg)
     _VIBE = VIBE(_cfg, device=_cfg.device, logger=_logger)
@@ -253,4 +259,56 @@ if __name__ == "__main__":
         }
 
         vibe_results[person_id] = output_dict
-        print("완료")
+
+    # ========= Render results as a single video ========= #
+    renderer = Renderer(resolution=(orig_width, orig_height), orig_img=True, wireframe=False, faces=_VIBE.model.smpl.faces)
+
+    os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+    print(f'Rendering output video, writing frames to {OUTPUT_FOLDER}')
+
+    # prepare results for rendering
+    frame_results = prepare_rendering_results(vibe_results, num_frames)
+    mesh_color = {k: colorsys.hsv_to_rgb(np.random.rand(), 0.5, 1.0) for k in vibe_results.keys()}
+
+    image_file_names = sorted([
+        os.path.join(image_folder, x)
+        for x in os.listdir(image_folder)
+        if x.endswith('.png') or x.endswith('.jpg') or x.endswith('.jpeg')
+    ])
+
+    for frame_idx in tqdm(range(len(image_file_names))):
+        img_fname = image_file_names[frame_idx]
+        img = cv2.imread(img_fname)
+
+        for person_id, person_data in frame_results[frame_idx].items():
+            frame_verts = person_data['verts']
+            frame_cam = person_data['cam']
+
+            mc = mesh_color[person_id]
+
+            mesh_filename = None
+
+            img = renderer.render(
+                img,
+                frame_verts,
+                cam=frame_cam,
+                color=mc,
+                mesh_filename=mesh_filename,
+            )
+
+        cv2.imwrite(os.path.join(OUTPUT_FOLDER, f'{frame_idx:06d}.png'), img)
+
+        cv2.imshow('Video', img)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    
+    cv2.destroyAllWindows()
+
+    vid_name = os.path.basename(video_file)
+    save_name = f'{vid_name.replace(".mp4", "")}_vibe_result.mp4'
+    save_name = os.path.join(OUTPUT_FOLDER, save_name)
+    print(f'Saving result video to {save_name}')
+    images_to_video(img_folder=OUTPUT_FOLDER, output_vid_file=save_name)
+    # shutil.rmtree(OUTPUT_FOLDER)
+
+    print("완료")
