@@ -3,3 +3,5 @@ numba==0.57.0
 filterpy
 scikit-image==0.18.3
 numpy==2.2.6
+trimesh
+pyrender
