@@ -2,6 +2,7 @@ import os
 import cv2
 import subprocess
 import numpy as np
+from collections import OrderedDict
 
 
 def video_to_images(vid_file, img_folder=None, return_info=False):
@@ -26,6 +27,18 @@ def video_to_images(vid_file, img_folder=None, return_info=False):
         return img_folder, len(os.listdir(img_folder)), img_shape
     else:
         return img_folder
+
+
+def images_to_video(img_folder, output_vid_file):
+    os.makedirs(img_folder, exist_ok=True)
+
+    command = [
+        'ffmpeg', '-y', '-threads', '16', '-i', f'{img_folder}/%06d.png', '-profile:v', 'baseline',
+        '-level', '3.0', '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-an', '-v', 'error', output_vid_file,
+    ]
+
+    print(f'Running \"{" ".join(command)}\"')
+    subprocess.call(command)
 
 
 def convert_crop_cam_to_orig_img(cam, bbox, img_width, img_height):
@@ -62,3 +75,23 @@ def convert_crop_coords_to_orig_img(bbox, keypoints, crop_size):
     keypoints[:,:,0] = (cx - h/2)[..., None] + keypoints[:,:,0]
     keypoints[:,:,1] = (cy - h/2)[..., None] + keypoints[:,:,1]
     return keypoints
+
+
+def prepare_rendering_results(vibe_results, nframes):
+    frame_results = [{} for _ in range(nframes)]
+    for person_id, person_data in vibe_results.items():
+        for idx, frame_id in enumerate(person_data['frame_ids']):
+            frame_results[frame_id][person_id] = {
+                'verts': person_data['verts'][idx],
+                'cam': person_data['orig_cam'][idx],
+            }
+
+    # naive depth ordering based on the scale of the weak perspective camera
+    for frame_id, frame_data in enumerate(frame_results):
+        # sort based on y-scale of the cam in original image coords
+        sort_idx = np.argsort([v['cam'][1] for k,v in frame_data.items()])
+        frame_results[frame_id] = OrderedDict(
+            {list(frame_data.keys())[i]:frame_data[list(frame_data.keys())[i]] for i in sort_idx}
+        )
+
+    return frame_results
