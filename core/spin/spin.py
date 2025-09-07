@@ -260,7 +260,6 @@ class SPIN(nn.Module):
 
         return img_shape, img_pose
 
-
     def predict(self, image: np.ndarray, bbox: Optional[List] = None) -> Tuple[torch.Tensor, object, np.ndarray, np.ndarray]:
         """
         Predict 3D pose and shape from a single image.
