@@ -48,12 +48,18 @@ from core.vibe.utils.demo_utils import (
 
 
 class VIBE(nn.Module):
-    """
-    Minimal VIBE wrapper skeleton for single-video 3D mesh extraction.
+    """Minimal VIBE wrapper for single-video 3D mesh extraction.
 
-    This file provides a lightweight class and method stubs to be filled
-    during the integration process. Methods intentionally raise
-    NotImplementedError to mark integration points.
+    This class encapsulates the VIBE pipeline with clear separation of
+    responsibilities:
+    - preprocess_video: extract frames and collect metadata
+    - process_detection: run detection/tracking to obtain tracks
+    - run_person_inference: per-person temporal inference
+    - postprocess_output: aggregate results per frame for rendering
+    - visualize_result: render meshes and save a result video
+
+    Visualization is intentionally kept outside of predict() to mirror the
+    SPIN structure and improve testability/composability.
     """
 
     def __init__(self, config: Dict, device: str = 'cuda', logger=None):
@@ -108,22 +114,23 @@ class VIBE(nn.Module):
 
         self.is_initialized = True
 
-    def preprocess_video(self, video_path: str) -> Tuple[str, int, Tuple[int, int, int]]:
+    def preprocess_video(self, video_path: str, image_folder: str = None) -> Tuple[str, int, Tuple[int, int, int]]:
         """Extract frames from a video and return image folder metadata.
 
         Args:
-            video_path: Path to the input video file.
+            video_path (str): Path to the input video file.
 
         Returns:
-            A tuple ``(image_folder, num_frames, img_shape)`` where:
-            - image_folder: path containing extracted image frames
-            - num_frames: number of extracted frames
-            - img_shape: image shape as (height, width, channels)
+            Tuple[str, int, Tuple[int, int, int]]: A tuple
+            ``(image_folder, num_frames, img_shape)`` where:
+            - image_folder (str): Path containing extracted image frames.
+            - num_frames (int): Number of extracted frames.
+            - img_shape (Tuple[int, int, int]): Image shape as (H, W, C).
 
         Raises:
-            RuntimeError: If frame extraction fails or video file not found.
+            RuntimeError: If frame extraction fails or the video file is not found.
         """
-        image_folder, num_frames, img_shape = video_to_images(video_path, return_info=True)
+        image_folder, num_frames, img_shape = video_to_images(video_path, img_folder=image_folder, return_info=True)
         self.logger.info(f'Input video number of frames {num_frames}')
                 
         return image_folder, num_frames, img_shape
@@ -132,12 +139,12 @@ class VIBE(nn.Module):
         """Run detection and tracking over extracted frames.
 
         Args:
-            image_folder: Directory with extracted image frames.
-            detector: Object detector instance with a ``run(img)`` method.
+            image_folder (str): Directory with extracted image frames.
+            detector: Object detector instance exposing a ``run(img)`` method.
 
         Returns:
-            A tracking_results dictionary mapping person_id to track info,
-            typically containing keys like ``'bbox'`` and ``'frames'``.
+            Dict: A mapping ``person_id -> track_info`` typically containing
+            keys like ``'bbox'`` and ``'frames'``.
         """
         # run tracker
         trackers = run_tracker(image_folder, detector)
@@ -158,20 +165,27 @@ class VIBE(nn.Module):
         """Run VIBE model on a single person's track and return results.
 
         Args:
-            image_folder: Directory with extracted image frames.
-            frames: Array of frame indices (0-based) belonging to this track.
-            bboxes: Array of bounding boxes corresponding to ``frames`` with
-                shape (N, 4) in [x, y, w, h] format (crop coordinates).
-            joints2d: Optional 2D keypoints aligned with ``frames`` if available.
-            orig_width: Original image width in pixels.
-            orig_height: Original image height in pixels.
+            image_folder (str): Directory with extracted image frames.
+            frames (np.ndarray): Frame indices (0-based) for this track, shape (N,).
+            bboxes (np.ndarray): Bounding boxes aligned with ``frames``, shape (N, 4)
+                in [x, y, w, h] format (crop coordinates).
+            joints2d (Optional[np.ndarray]): Optional 2D keypoints aligned with
+                ``frames`` if available.
+            orig_width (int): Original image width in pixels.
+            orig_height (int): Original image height in pixels.
 
         Returns:
-            A dictionary containing numpy arrays for predictions with keys like
-            ``'pred_cam'``, ``'orig_cam'``, ``'verts'``, ``'pose'``, ``'betas'``,
-            ``'joints3d'``, ``'joints2d'``, ``'joints2d_img_coord'``, ``'bboxes'``,
-            and ``'frame_ids'``. All arrays are trimmed to the same leading
-            dimension N (number of outputs).
+            Dict: A dictionary of numpy arrays with keys:
+            - 'pred_cam': (N, 3) weak-perspective camera [s, tx, ty].
+            - 'orig_cam': (N, 3) camera parameters in original image coords.
+            - 'verts': (N, V, 3) predicted SMPL vertices.
+            - 'pose': (N, 72) SMPL pose parameters.
+            - 'betas': (N, 10) SMPL shape parameters.
+            - 'joints3d': (N, J, 3) 3D joints.
+            - 'joints2d': Optional input 2D joints aligned with frames.
+            - 'joints2d_img_coord': (N, J, 2) 2D joints in original image coords.
+            - 'bboxes': (N, 4) crop boxes [x, y, w, h].
+            - 'frame_ids': (N,) frame indices.
 
         Raises:
             RuntimeError: If the model produces no outputs for the provided data.
@@ -271,15 +285,14 @@ class VIBE(nn.Module):
         """Aggregate per-person outputs into per-frame rendering structures.
 
         Args:
-            vibe_results: Mapping person_id -> per-person output dict returned
-                from :meth:`run_person_inference`.
-            meta: Dictionary with metadata, must include ``'num_frames'``.
+            vibe_results (Dict): Mapping ``person_id -> per-person output dict``
+                as returned from :meth:`run_person_inference`.
+            meta (Dict): Metadata dict containing at least ``'num_frames'``.
 
         Returns:
-            A list ``frame_results`` of length ``num_frames`` where each entry
-            is a dict mapping ``person_id`` to a small data dict with keys
-            ``'verts'`` and ``'cam'`` (and optionally ``'color'``, etc.),
-            suitable for the renderer.
+            List[Dict]: ``frame_results`` with length ``num_frames`` where each
+            entry maps ``person_id`` to a small dict containing keys like
+            ``'verts'`` and ``'cam'``, suitable for the renderer.
         """
         num_frames = int(meta.get('num_frames'))
         # prepare_rendering_results does the heavy lifting (existing util)
@@ -297,21 +310,19 @@ class VIBE(nn.Module):
         """Render meshes on frames and assemble a result video.
 
         Args:
-            image_folder: Directory containing extracted frames (ordered).
-            frame_results: List of per-frame dicts produced by
+            image_folder (str): Directory containing extracted frames (ordered).
+            frame_results (List[Dict]): Per-frame dicts from
                 :meth:`postprocess_output`.
-            output_folder: Directory where rendered frames and video will be
-                written. Will be created if it does not exist.
-            show: If True, display frames in a window during rendering.
+            output_folder (str): Directory where rendered frames and the video
+                will be written. Created if it does not exist.
+            show (bool): If True, display frames during rendering.
 
         Returns:
-            Path to the saved video file (string).
+            str: Path to the saved video file.
         """
         os.makedirs(output_folder, exist_ok=True)
 
         # renderer uses SMPL faces from the model
-        # faces attr assumed available at self.model.smpl.faces
-        h, w = frame_results[0].get(list(frame_results[0].keys())[0], {}).get('img_size', (None, None))[:2] if len(frame_results) > 0 else (None, None)
         # fallback: try to infer from first image
         files = sorted([
             os.path.join(image_folder, x)
@@ -370,26 +381,26 @@ class VIBE(nn.Module):
         return save_name
 
 
-    def predict(self, video_path: str, detector=None, output_folder: Optional[str] = None) -> Dict:
+    def predict(self, video_path: str, detector=None, image_folder: str = None) -> Dict:
         """Run the full VIBE pipeline on an input video.
 
-        This is a convenience method that performs frame extraction,
-        detection/tracking, per-person inference, postprocessing and
-        visualization in sequence.
+        This method performs frame extraction, detection/tracking,
+        per-person inference, and postprocessing. Visualization is
+        intentionally excluded; call :meth:`visualize_result` separately.
 
         Args:
-            video_path: Path to the input video file.
+            video_path (str): Path to the input video file.
             detector: Detector instance used by :meth:`process_detection`.
-            output_folder: Optional path where visualization outputs will be
-                written. If None, a default under ``out/`` is used.
 
         Returns:
-            A dictionary with keys ``'vibe_results'``, ``'frame_results'`` and
-            ``'video_path'`` providing the raw per-person outputs, the
-            per-frame rendering structure and the path to the rendered video
-            respectively.
+            Dict: A dict with keys:
+            - 'vibe_results': Raw per-person outputs.
+            - 'frame_results': Per-frame data for rendering.
+            - 'image_folder': Path to extracted frames.
+            - 'num_frames': Number of frames.
+            - 'img_shape': (H, W, C) image shape.
         """
-        image_folder, num_frames, img_shape = self.preprocess_video(self.config.media_source)
+        image_folder, num_frames, img_shape = self.preprocess_video(video_path, image_folder=image_folder)
         tracking_results = self.process_detection(image_folder, detector)
 
         orig_height, orig_width = img_shape[:2]
@@ -417,16 +428,13 @@ class VIBE(nn.Module):
             {'num_frames': num_frames, 'img_shape': img_shape}
         )
 
-        # visualize
-        if output_folder is None:
-            output_folder = os.path.join('out', os.path.basename(os.path.splitext(video_path)[0]))
-        video_path = self.visualize_result(
-            image_folder, 
-            frame_results, 
-            output_folder, 
-            show=True)
-        self.logger.info(f'Saving result video to {video_path}')
-        # shutil.rmtree(output_folder)
+        return {
+            'vibe_results': vibe_results,
+            'frame_results': frame_results,
+            'image_folder': image_folder,
+            'num_frames': num_frames,
+            'img_shape': img_shape,
+        }
 
     def __repr__(self) -> str:
         return f"VIBE(device={self.device}, initialized={self.is_initialized})"
@@ -449,5 +457,13 @@ if __name__ == "__main__":
     _detector = ObjectDetector(cfg=_cfg)
     _VIBE = VIBE(_cfg, device=_cfg.device, logger=_logger)
 
-    _VIBE.predict(video_file, detector=_detector, output_folder=str(OUTPUT_FOLDER))
-
+    results = _VIBE.predict(video_file, detector=_detector, image_folder=str(OUTPUT_FOLDER))
+    # Render results separately (visualization only here)
+    _VIBE.visualize_result(
+        results['image_folder'],
+        results['frame_results'],
+        output_folder=str(OUTPUT_FOLDER),
+        show=True
+    )
+    print(f'Saving result video to {OUTPUT_FOLDER}')
+    print("-- MediaLoader is closed")
