@@ -62,11 +62,11 @@ class VIBE(nn.Module):
     SPIN structure and improve testability/composability.
     """
 
-    def __init__(self, config: Dict, device: str = 'cuda', logger=None):
+    def __init__(self, config: Dict, logger=None):
         super(VIBE, self).__init__()
 
         self.config = config
-        self.device = torch.device('cuda') if device == 'cuda' and torch.cuda.is_available() else torch.device('cpu')
+        self.device = torch.device('cuda') if config.vibe_device == 'cuda' and torch.cuda.is_available() else torch.device('cpu')
         self.logger = get_logger() if logger is None else logger
         self.model = None
         self.is_initialized = False
@@ -91,12 +91,12 @@ class VIBE(nn.Module):
         """
         # placeholder: implement loading of VIBE backbone, temporal model, SMPL, etc.
         self.model = VIBE_Demo(
-            seqlen=16,
+            seqlen=self.config.vibe_seq_len,
             batch_size=self.config.vibe_batch_size,
-            n_layers=2,
-            hidden_size=1024,
-            add_linear=True,
-            use_residual=True,
+            n_layers=self.config.vibe_n_layers,
+            hidden_size=self.config.vibe_hidden_size,
+            add_linear=self.config.vibe_add_linear,
+            use_residual=self.config.vibe_use_residual,
             pretrained=os.path.abspath(os.path.join(self.config.vibe_data_dir, 'spin_model_checkpoint.pth.tar')),
             smpl_mean_params=os.path.abspath(os.path.join(self.config.vibe_data_dir, 'smpl_mean_params.npz')),
         ).to(self.device)
@@ -380,7 +380,6 @@ class VIBE(nn.Module):
         images_to_video(img_folder=output_folder, output_vid_file=save_name)
         return save_name
 
-
     def predict(self, video_path: str, detector=None, image_folder: str = None) -> Dict:
         """Run the full VIBE pipeline on an input video.
 
@@ -455,7 +454,7 @@ if __name__ == "__main__":
     video_file = _cfg.media_source
 
     _detector = ObjectDetector(cfg=_cfg)
-    _VIBE = VIBE(_cfg, device=_cfg.device, logger=_logger)
+    _VIBE = VIBE(_cfg, logger=_logger)
 
     results = _VIBE.predict(video_file, detector=_detector, image_folder=str(OUTPUT_FOLDER))
     # Render results separately (visualization only here)

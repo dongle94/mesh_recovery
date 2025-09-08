@@ -51,7 +51,12 @@ def set_config(file):
     config.vibe_device = _config['VIBE']['DEVICE']
     config.vibe_data_dir = _config['VIBE']['DATA_DIR']
     config.vibe_use_3dpw = _config['VIBE']['USE_3DPW']
+    config.vibe_seq_len = _config['VIBE']['SEQLEN']
     config.vibe_batch_size = _config['VIBE']['BATCH_SIZE']
+    config.vibe_n_layers = _config['VIBE']['N_LAYERS']
+    config.vibe_hidden_size = _config['VIBE']['HIDDEN_SIZE']
+    config.vibe_add_linear = _config['VIBE']['ADD_LINEAR']
+    config.vibe_use_residual = _config['VIBE']['USE_RESIDUAL']
 
     # HYBRIK
     config.hybrik_ckpt = _config['HYBRIK']['CKPT']

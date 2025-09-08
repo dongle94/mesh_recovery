@@ -45,15 +45,12 @@ VIBE:
   DEVICE: 'cuda'  # 'cuda' or 'cpu'
   DATA_DIR: './weights/vibe/'
   USE_3DPW: False
+  SEQLEN: 16
   BATCH_SIZE: 64
-  # JOINT_REGRESSOR_EXTRA: './weights/vibe/data/J_regressor_extra.npy'
-  # CHECKPOINT: './weights/vibe/vibe.pth'
-  # SMPL_MODEL_DIR: './weights/smpl/basicModel_neutral_lbs_10_207_0_v1.0.0.pkl'
-  # SEQLEN: 16
-  # N_LAYERS: 2
-  # HIDDEN_SIZE: 1024
-  # ADD_LINEAR: True
-  # USE_RESIDUAL: True
+  N_LAYERS: 2
+  HIDDEN_SIZE: 1024
+  ADD_LINEAR: True
+  USE_RESIDUAL: True
 
 # HYBRIK
 HYBRIK:
