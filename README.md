@@ -33,6 +33,11 @@ weights/
 │   │   ├── ...
 │   │   └── smpl_mean_params.npz
 │   └── hmr.pt
+├── vibe/
+│   ├── prepare_data.sh
+│   ├── ...
+│   ├── vibe_model_w_3dpw.pth.tar
+│   └── vibe_model_wo_3dpw.pth.tar
 ├── hybrik/
     └──hybrikx_rle_hrnet.pth
 ```
@@ -47,3 +52,9 @@ This project incorporates code from SPIN:
 - Copyright (c) 2019, University of Pennsylvania, Max Planck Institute for Intelligent Systems
 - Licensed under BSD 3-Clause License
 - See [LICENSE_SPIN](core/spin/LICENSE) for full license text
+
+This project also incorporates code from VIBE:
+- **VIBE (Video Inference for Human Body Pose and Shape Estimation)**
+- Copyright (c) 2019, Max Planck Institute for Intelligent Systems
+- Licensed for non-commercial scientific research and education use
+- See [LICENSE_VIBE](core/vibe/LICENSE) for full license text
