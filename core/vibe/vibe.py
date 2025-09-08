@@ -198,6 +198,7 @@ class VIBE(nn.Module):
             bboxes=bboxes,
             joints2d=joints2d,
             scale=self.bbox_scale,
+            seqlen=self.config.vibe_seq_len,
         )
 
         # use dataset's potentially reindexed values
@@ -251,6 +252,20 @@ class VIBE(nn.Module):
         pred_betas = pred_betas.cpu().numpy()
         pred_joints3d = pred_joints3d.cpu().numpy()
         smpl_joints2d = smpl_joints2d.cpu().numpy()
+
+        # Dataset은 마지막 클립을 패딩했으므로, 원래 길이 N으로 자른다
+        target_len = len(dataset.image_file_names)
+        if pred_cam.shape[0] != target_len:
+            pred_cam = pred_cam[:target_len]
+            pred_verts = pred_verts[:target_len]
+            pred_pose = pred_pose[:target_len]
+            pred_betas = pred_betas[:target_len]
+            pred_joints3d = pred_joints3d[:target_len]
+            smpl_joints2d = smpl_joints2d[:target_len]
+        # bboxes도 동일 길이로 보장
+        if bboxes is not None and len(bboxes) != target_len:
+            bboxes = bboxes[:target_len]
+        frames = frames[:target_len]
 
         # convert to original image coordinates
         orig_cam = convert_crop_cam_to_orig_img(
