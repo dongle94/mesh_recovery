@@ -75,11 +75,9 @@ class LoadImages(LoadSample):
 
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-    p1 = './data/images/'
-    p2 = './data/images/*'
-    p3 = './data/images/sample.jpg'
-    loader = LoadImages(p1)
-    for _im in loader:
-        plt.imshow(_im)
-        plt.show()
+    loader = LoadImages('./data/images/')
+    for img in loader:
+        cv2.imshow('Loaded Image', img)
+        if cv2.waitKey(0) == ord('q'):
+            break
+    cv2.destroyAllWindows()
