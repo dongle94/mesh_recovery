@@ -36,7 +36,7 @@ class LoadStream(LoadSample):
         fps = cap.get(cv2.CAP_PROP_FPS)
         self.fps = max((fps if math.isfinite(fps) else 0) % 100, 0) or 30  # 30 FPS fallback
         self.frame = max(int(cap.get(cv2.CAP_PROP_FRAME_COUNT)), 0) or float('inf')
-        self.enable_param = opt.media_enable_param
+        self.enable_param = getattr(opt, 'media_enable_param', False)
         if self.enable_param:
             for param in opt.media_cv2_params:
                 k, v = param.popitem()
